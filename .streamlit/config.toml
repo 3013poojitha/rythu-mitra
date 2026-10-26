@@ -1,0 +1,16 @@
+# Same colours as the React app (frontend/src/styles.css)
+[theme]
+base = "light"
+primaryColor = "#1f7a3e"
+backgroundColor = "#f4f7f2"
+secondaryBackgroundColor = "#ffffff"
+textColor = "#1d2a1f"
+borderColor = "#e1e8df"
+showWidgetBorder = true
+baseRadius = "8px"
+
+[client]
+toolbarMode = "viewer"
+
+[browser]
+gatherUsageStats = false

@@ -6,3 +6,4 @@ backend/users.json
 .claude/
 # frontend/dist is committed on purpose: Render serves the pre-built UI.
 # After changing anything in frontend/src, run "npm run build" in frontend/ and commit again.
+.streamlit/secrets.toml

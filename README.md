@@ -30,6 +30,24 @@ Open http://localhost:8000.
 
 Requirements: Python 3.10+ and Node.js 18+.
 
+## Streamlit version
+
+`streamlit_app.py` is a Streamlit version of the same app. It has the same login, chat, Crop Doctor, services, pipeline and dashboard, and reuses the Python logic in `backend/app/`.
+
+Run it locally:
+
+```bash
+backend\.venv\Scripts\pip install -r requirements.txt
+backend\.venv\Scripts\streamlit run streamlit_app.py
+```
+
+Deploy it free on Streamlit Community Cloud:
+1. Go to https://share.streamlit.io and sign in with GitHub.
+2. Click **Create app**, then **Deploy a public app from GitHub**.
+3. Repository `3013poojitha/rythu-mitra`, branch `main`, main file `streamlit_app.py`.
+4. Under **Advanced settings**, choose Python 3.11, then click **Deploy**.
+5. Optional live AI: in the app's **Settings → Secrets**, add `ANTHROPIC_API_KEY = "..."` and/or `OPENAI_API_KEY = "..."`.
+
 ## Deploy online (Render, free)
 
 1. Push this folder to a GitHub repository (private is fine).

@@ -9,6 +9,8 @@ Dose units:
   per="litre" -> amount of product per litre of water (sprayed or drenched)
   per="acre"  -> amount applied directly per acre (granules, traps, bio-agents)
 """
+from .terms import medicine
+
 
 SPRAYER_TANK_L = 16  # standard knapsack sprayer
 
@@ -250,9 +252,139 @@ def plan_for(disease, acres):
     return out
 
 
-def short_remedy(disease):
+def short_remedy(disease, te=False):
     t = disease["treatments"][0]
+    if te:
+        # Telugu: the treatment lines have Telugu (see TREATMENT_TE at the end of this file)
+        if t["per"] == "litre":
+            return (f"{medicine(t['product'])}: లీటరు నీటికి {t['dose']} {t['unit']} "
+                    f"({SPRAYER_TANK_L} లీటర్ల ట్యాంకుకు {round(t['dose'] * SPRAYER_TANK_L, 1)} {t['unit']}). {t['when_te']}")
+        return f"{medicine(t['product'])}: ఎకరానికి {t['dose']} {t['unit']}. {t['when_te']}"
     if t["per"] == "litre":
         return (f"{t['product']}: {t['dose']} {t['unit']} per litre of water "
                 f"({round(t['dose'] * SPRAYER_TANK_L, 1)} {t['unit']} per {SPRAYER_TANK_L}-litre tank). {t['when']}")
     return f"{t['product']}: {t['dose']} {t['unit']} per acre. {t['when']}"
+
+
+# Telugu for the treatment lines (why / when / repeat), so a farmer reading Telugu
+# gets the full spray instructions. Added to each treatment as reason_te, when_te, repeat_te.
+TREATMENT_TE = {
+    # Why this product
+    "Systemic fungicide that stops the blast fungus from entering leaves.": "అగ్గి తెగులు శిలీంధ్రం ఆకులలోకి చేరకుండా ఆపే లోపలికి వెళ్లే (సిస్టమిక్) మందు.",
+    "Alternative fungicide - use if Tricyclazole was already sprayed twice.": "ప్రత్యామ్నాయ మందు - ట్రైసైక్లాజోల్ ఇప్పటికే రెండుసార్లు కొట్టి ఉంటే ఇది వాడండి.",
+    "Beneficial bacteria that suppress the fungus; safe for the environment.": "శిలీంధ్రాన్ని అణిచే మంచి బ్యాక్టీరియా; పర్యావరణానికి సురక్షితం.",
+    "Stops the insects from feeding; gentle on natural enemies like spiders.": "పురుగులు రసం పీల్చకుండా ఆపుతుంది; సాలీడు వంటి మిత్ర పురుగులకు హాని తక్కువ.",
+    "Fast-acting alternative for heavy attack.": "ఎక్కువ దాడి ఉన్నప్పుడు త్వరగా పనిచేసే ప్రత్యామ్నాయ మందు.",
+    "Repels and reduces egg laying; best in early stage.": "పురుగులను దూరం చేసి గుడ్లు పెట్టడం తగ్గిస్తుంది; మొదట్లోనే బాగా పనిచేస్తుంది.",
+    "Kills caterpillars inside the stem; long protection.": "కాండం లోపలి పురుగులను చంపుతుంది; ఎక్కువ రోజులు రక్షణ ఇస్తుంది.",
+    "Granules release slowly into water and reach the borer inside the stem.": "గుళికలు నీటిలో నెమ్మదిగా కరిగి కాండం లోపలి పురుగును చేరతాయి.",
+    "Catch male moths and reduce mating; also shows when to act.": "మగ రెక్కల పురుగులను పట్టి సంతానం తగ్గిస్తాయి; మందు ఎప్పుడు కొట్టాలో కూడా తెలుపుతాయి.",
+    "Contact and stomach poison for young larvae before they enter bolls.": "చిన్న పురుగులు కాయలలోకి చేరకముందే వాటిని చంపే మందు.",
+    "Strong larvicide; use as rotation partner.": "పురుగులను బలంగా చంపే మందు; మార్చి మార్చి వాడండి.",
+    "Reduces egg laying from early flowering.": "పూత మొదలైనప్పటి నుండి గుడ్లు పెట్టడం తగ్గిస్తుంది.",
+    "Trap male moths and tell you when numbers cross the danger level.": "మగ రెక్కల పురుగులను పట్టి, ప్రమాద స్థాయి దాటినప్పుడు తెలుపుతాయి.",
+    "Kills adults and nymphs on leaf undersides.": "ఆకుల అడుగున ఉన్న పెద్ద, చిన్న తెల్లదోమలను చంపుతుంది.",
+    "Stops feeding quickly; safe for bees when used correctly.": "రసం పీల్చడం త్వరగా ఆపుతుంది; సరిగా వాడితే తేనెటీగలకు సురక్షితం.",
+    "Reduces egg laying and repels adults.": "గుడ్లు పెట్టడం తగ్గించి పెద్ద పురుగులను దూరం చేస్తుంది.",
+    "Attract and trap adult whiteflies.": "పెద్ద తెల్లదోమలను ఆకర్షించి పట్టుకుంటాయి.",
+    "Kills larvae hidden in the whorl.": "సుడిలో దాగిన పురుగులను చంపుతుంది.",
+    "Long-lasting control; rotation partner.": "ఎక్కువ రోజులు పనిచేస్తుంది; మార్చి మార్చి వాడే మందు.",
+    "Stops young larvae from feeding; low cost.": "చిన్న పురుగులు తినకుండా ఆపుతుంది; తక్కువ ఖర్చు.",
+    "Abrasive mixture placed in the whorl damages young larvae.": "సుడిలో వేసే ఈ మిశ్రమం చిన్న పురుగులను దెబ్బతీస్తుంది.",
+    "Protective fungicide that stops new infections.": "కొత్తగా తెగులు సోకకుండా కాపాడే మందు.",
+    "Systemic fungicide for spreading infection.": "వ్యాపిస్తున్న తెగులుకు లోపలికి వెళ్లే (సిస్టమిక్) మందు.",
+    "Controls thrips feeding on new leaves.": "కొత్త ఆకులను పీల్చే తామర పురుగులను అదుపు చేస్తుంది.",
+    "Rotation partner with a different mode of action.": "వేరే విధంగా పనిచేసే మందు; మార్చి మార్చి వాడండి.",
+    "Repels thrips and mites; safe near harvest.": "తామర పురుగులు, నల్లిని దూరం చేస్తుంది; కోత దగ్గరలో కూడా సురక్షితం.",
+    "Attract and catch adult thrips.": "పెద్ద తామర పురుగులను ఆకర్షించి పట్టుకుంటాయి.",
+    "Systemic fungicide that stops the fruit rot fungus.": "కాయ కుళ్లు శిలీంధ్రాన్ని ఆపే లోపలికి వెళ్లే (సిస్టమిక్) మందు.",
+    "Rotation partner with long protection.": "ఎక్కువ రోజులు రక్షణ ఇచ్చే మందు; మార్చి మార్చి వాడండి.",
+    "Protective cover spray before rains.": "వర్షాలకు ముందు కాపాడే పిచికారీ.",
+    "Kills larvae with long residual effect.": "పురుగులను చంపి ఎక్కువ రోజులు పనిచేస్తుంది.",
+    "Rotation partner for heavy attack.": "ఎక్కువ దాడి ఉన్నప్పుడు మార్చి వాడే మందు.",
+    "Prevents egg laying and young larva feeding.": "గుడ్లు పెట్టడం, చిన్న పురుగులు తినడం ఆపుతుంది.",
+    "Systemic fungicide that controls both leaf spots.": "రెండు రకాల ఆకు మచ్చలను అదుపు చేసే లోపలికి వెళ్లే (సిస్టమిక్) మందు.",
+    "Rotation partner; also controls rust.": "మార్చి వాడే మందు; తుప్పు తెగులును కూడా అదుపు చేస్తుంది.",
+    "Low-cost protective spray.": "తక్కువ ఖర్చుతో కాపాడే పిచికారీ.",
+    "Kills the rot fungus in the root zone.": "వేర్ల దగ్గర ఉన్న కుళ్లు శిలీంధ్రాన్ని చంపుతుంది.",
+    "Systemic fungicide specific to Pythium rot.": "పిథియం దుంప కుళ్లుకు ప్రత్యేకమైన లోపలికి వెళ్లే (సిస్టమిక్) మందు.",
+    "Beneficial fungus that protects roots from rot.": "వేర్లను కుళ్లు నుండి కాపాడే మంచి శిలీంధ్రం.",
+    "Kills caterpillars of all sizes.": "అన్ని సైజుల పురుగులను చంపుతుంది.",
+    "Rotation partner for older larvae.": "పెద్ద పురుగులకు మార్చి వాడే మందు.",
+    "Stops young larvae from feeding.": "చిన్న పురుగులు తినకుండా ఆపుతుంది.",
+    # When to apply
+    "At first spots on leaves, and again at panicle emergence to protect the neck.": "ఆకులపై మొదటి మచ్చలు కనిపించగానే, మళ్లీ వెన్ను బయటకు వచ్చేటప్పుడు మెడను కాపాడటానికి.",
+    "When leaf spots are spreading quickly.": "ఆకు మచ్చలు వేగంగా వ్యాపిస్తున్నప్పుడు.",
+    "As prevention from tillering stage, or at very first spots.": "పిలకల దశ నుండి ముందు జాగ్రత్తగా, లేదా మొదటి మచ్చలు కనిపించగానే.",
+    "When 10 or more hoppers are seen per hill. Drain water first.": "ఒక్కో దుబ్బుకు 10 లేదా ఎక్కువ దోమలు కనిపించినప్పుడు. ముందు నీరు తీసివేయండి.",
+    "Heavy infestation or hopper burn patches appearing.": "దాడి ఎక్కువగా ఉన్నప్పుడు లేదా పొలంలో ఎండిన మచ్చలు కనిపించినప్పుడు.",
+    "At the first sighting of hoppers.": "దోమలు మొదట కనిపించగానే.",
+    "When 5% dead hearts or egg masses are seen.": "5% మొవ్వలు ఎండినప్పుడు లేదా గుడ్ల సముదాయాలు కనిపించినప్పుడు.",
+    "At 30-35 days after transplanting with 2-3 cm water in the field.": "నాటిన 30-35 రోజులకు, పొలంలో 2-3 సెం.మీ. నీరు ఉండగా.",
+    "From 15 days after transplanting.": "నాటిన 15 రోజుల నుండి.",
+    "When 8 moths/trap/night for 3 nights or 10% damaged flowers/bolls.": "ఒక బుట్టలో రాత్రికి 8 రెక్కల పురుగులు 3 రాత్రులు పడినప్పుడు, లేదా 10% పూలు/కాయలు దెబ్బతిన్నప్పుడు.",
+    "At second spray if attack continues.": "దాడి కొనసాగితే రెండో పిచికారీగా.",
+    "From 45-50 days after sowing.": "విత్తిన 45-50 రోజుల నుండి.",
+    "From 40 days after sowing.": "విత్తిన 40 రోజుల నుండి.",
+    "When 6-8 adults per leaf on top leaves.": "పై ఆకులపై ఒక్కో ఆకుకు 6-8 తెల్లదోమలు కనిపించినప్పుడు.",
+    "If whitefly continues after first spray.": "మొదటి పిచికారీ తర్వాత కూడా తెల్లదోమ ఉంటే.",
+    "Early stage, low numbers.": "మొదటి దశలో, పురుగులు తక్కువగా ఉన్నప్పుడు.",
+    "From early crop stage.": "పంట మొదటి దశ నుండి.",
+    "When 10% plants show fresh damage (first 30 days) or 20% later.": "మొదటి 30 రోజుల్లో 10% మొక్కలకు, తర్వాత 20% మొక్కలకు కొత్త నష్టం కనిపించినప్పుడు.",
+    "Second spray if damage continues.": "నష్టం కొనసాగితే రెండో పిచికారీ.",
+    "At egg and early larva stage (first 2 weeks).": "గుడ్లు, చిన్న పురుగుల దశలో (మొదటి 2 వారాలు).",
+    "Early whorl stage, low infestation.": "సుడి మొదటి దశలో, దాడి తక్కువగా ఉన్నప్పుడు.",
+    "At first symptoms on lower leaves.": "కింది ఆకులపై మొదటి లక్షణాలు కనిపించగానే.",
+    "If spots reach the leaves above the cob.": "మచ్చలు కంకి పై ఆకులకు చేరితే.",
+    "When 2 or more thrips per leaf or first curling.": "ఒక్కో ఆకుకు 2 లేదా ఎక్కువ తామర పురుగులు ఉన్నప్పుడు, లేదా ఆకు ముడత మొదలవగానే.",
+    "If thrips continue after first spray.": "మొదటి పిచికారీ తర్వాత కూడా తామర పురుగులు ఉంటే.",
+    "Early stage or between chemical sprays.": "మొదటి దశలో లేదా రసాయన పిచికారీల మధ్యలో.",
+    "From transplanting.": "నాటినప్పటి నుండి.",
+    "At first fruit spots or tip drying.": "కాయలపై మొదటి మచ్చలు లేదా కొనలు ఎండటం కనిపించగానే.",
+    "During rainy spells at fruiting.": "కాయ దశలో వర్షాలు కురుస్తున్నప్పుడు.",
+    "Before forecast rain at fruiting stage.": "కాయ దశలో వర్షం సూచన ఉన్నప్పుడు ముందుగానే.",
+    "At 50% flowering or when 1 larva per plant.": "50% పూత దశలో, లేదా ఒక్కో మొక్కకు 1 పురుగు కనిపించినప్పుడు.",
+    "Second spray at pod formation.": "కాయ ఏర్పడేటప్పుడు రెండో పిచికారీ.",
+    "At flower initiation.": "పూత మొదలయ్యేటప్పుడు.",
+    "At first spots (around 30-35 days).": "మొదటి మచ్చలు కనిపించగానే (సుమారు 30-35 రోజులకు).",
+    "Second spray if spots continue.": "మచ్చలు కొనసాగితే రెండో పిచికారీ.",
+    "Before humid spells.": "తేమ ఎక్కువగా ఉండే రోజులకు ముందు.",
+    "As soon as yellowing plants are seen; drench affected and nearby plants.": "మొక్కలు పసుపు రంగుకు మారడం కనిపించగానే; తెగులు సోకిన, చుట్టుపక్కల మొక్కల మొదళ్లలో పోయండి.",
+    "If rot spreads after the first drench.": "మొదటిసారి పోసిన తర్వాత కూడా కుళ్లు వ్యాపిస్తే.",
+    "At planting and again at 60 days.": "నాటేటప్పుడు, మళ్లీ 60 రోజులకు.",
+    "When young larvae are seen in groups.": "చిన్న పురుగులు గుంపులుగా కనిపించినప్పుడు.",
+    "At egg and first larva stage.": "గుడ్లు, మొదటి పురుగుల దశలో.",
+    # Repeat
+    "Repeat after 10-15 days if spots continue": "మచ్చలు కొనసాగితే 10-15 రోజుల తర్వాత మళ్లీ కొట్టండి",
+    "Once more after 12-15 days if needed": "అవసరమైతే 12-15 రోజుల తర్వాత మరోసారి",
+    "Every 10 days, 2-3 times": "ప్రతి 10 రోజులకు, 2-3 సార్లు",
+    "Once more after 15 days if hoppers return": "దోమలు మళ్లీ వస్తే 15 రోజుల తర్వాత మరోసారి",
+    "Do not repeat the same product - rotate": "అదే మందు మళ్లీ వాడవద్దు - వేరే మందుకు మార్చండి",
+    "Every 7-10 days": "ప్రతి 7-10 రోజులకు",
+    "Once more after 20 days if needed": "అవసరమైతే 20 రోజుల తర్వాత మరోసారి",
+    "Single application": "ఒక్కసారి వేస్తే చాలు",
+    "Change lure every 25-30 days": "ప్రతి 25-30 రోజులకు ఎర (ల్యూర్) మార్చండి",
+    "Rotate with another product after 10-15 days": "10-15 రోజుల తర్వాత వేరే మందుకు మార్చండి",
+    "Do not use more than twice a season": "ఒక సీజన్‌లో రెండుసార్ల కంటే ఎక్కువ వాడవద్దు",
+    "Every 10 days": "ప్రతి 10 రోజులకు",
+    "Change lure every 3 weeks": "ప్రతి 3 వారాలకు ఎర (ల్యూర్) మార్చండి",
+    "Rotate after 10-12 days": "10-12 రోజుల తర్వాత వేరే మందుకు మార్చండి",
+    "Once more after 15 days if needed": "అవసరమైతే 15 రోజుల తర్వాత మరోసారి",
+    "Every 7 days": "ప్రతి 7 రోజులకు",
+    "Replace when full": "అట్టలు నిండగానే మార్చండి",
+    "Rotate after 10 days": "10 రోజుల తర్వాత వేరే మందుకు మార్చండి",
+    "Maximum 2 sprays per season": "ఒక సీజన్‌లో గరిష్టంగా 2 పిచికారీలు",
+    "Once a week": "వారానికి ఒకసారి",
+    "Repeat after 10-12 days": "10-12 రోజుల తర్వాత మళ్లీ కొట్టండి",
+    "Repeat after 15 days": "15 రోజుల తర్వాత మళ్లీ కొట్టండి",
+    "Every 10-12 days": "ప్రతి 10-12 రోజులకు",
+    "Do not repeat the same product": "అదే మందు మళ్లీ వాడవద్దు",
+    "Maximum 2 sprays": "గరిష్టంగా 2 పిచికారీలు",
+    "Once more after 15-20 days": "15-20 రోజుల తర్వాత మరోసారి",
+    "Twice a season": "సీజన్‌కు రెండుసార్లు",
+}
+
+for _d in DISEASES:
+    for _t in _d["treatments"]:
+        for _k in ("reason", "when", "repeat"):
+            _t[f"{_k}_te"] = TREATMENT_TE.get(_t[_k], _t[_k])

@@ -1,13 +1,16 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { api, session } from "../api.jsx";
+import { LangSwitch, useLang } from "../i18n.jsx";
 
 // Login, farmer sign-up, forgot password and reset password - one card that switches between modes
 export default function Auth({ onLogin }) {
+  const { te, t, setLang } = useLang();
+  useEffect(() => setLang("te"), []); // the login page always opens in Telugu; the switch changes it
   const [mode, setMode] = useState("login");
-  const [notice, setNotice] = useState("");
+  const [notice, setNotice] = useState(null); // [English, Telugu]
   const [resetFor, setResetFor] = useState(null); // {user_id, sent_to, demo_otp}
 
-  const go = (m, msg = "") => {
+  const go = (m, msg = null) => {
     setMode(m);
     setNotice(msg);
   };
@@ -16,19 +19,20 @@ export default function Auth({ onLogin }) {
     <div className="auth-page">
       <div className="auth-hero">
         <div className="logo big">🌾</div>
-        <h1>Rythu Mitra <span className="te">రైతు మిత్ర</span></h1>
-        <p>Telangana Agriculture Department × Bharat Vistaar</p>
+        <h1>{te ? "రైతు మిత్ర" : "Rythu Mitra"}</h1>
+        <p>{t("Telangana Agriculture Department × Bharat Vistaar", "తెలంగాణ వ్యవసాయ శాఖ × భారత్ విస్తార్")}</p>
         <ul>
-          <li>Telugu & English farmer assistant</li>
-          <li>Crop disease detection with spray guidance</li>
-          <li>Scheme, payment and grievance status</li>
-          <li>Content pipeline and PMU dashboard for staff</li>
+          <li>{t("Telugu & English farmer assistant", "తెలుగు & ఇంగ్లీష్‌లో రైతు సహాయకుడు")}</li>
+          <li>{t("Crop disease detection with spray guidance", "పంట తెగులు గుర్తింపు, మందుల సలహా")}</li>
+          <li>{t("Scheme, payment and grievance status", "పథకాలు, డబ్బు జమ, ఫిర్యాదుల స్థితి")}</li>
+          <li>{t("Content pipeline and PMU dashboard for staff", "సిబ్బందికి కంటెంట్ పైప్‌లైన్, PMU డాష్‌బోర్డ్")}</li>
         </ul>
-        <small>Prototype with dummy data</small>
+        <small>{t("Prototype with dummy data")}</small>
       </div>
 
       <div className="auth-card panel">
-        {notice && <div className="success">{notice}</div>}
+        <div className="auth-lang"><LangSwitch /></div>
+        {notice && <div className="success">{t(notice[0], notice[1])}</div>}
         {mode === "login" && <Login onLogin={onLogin} go={go} />}
         {mode === "register" && <Register go={go} />}
         {mode === "forgot" && <Forgot go={go} onSent={(r) => { setResetFor(r); go("reset"); }} />}
@@ -39,6 +43,7 @@ export default function Auth({ onLogin }) {
 }
 
 function Login({ onLogin, go }) {
+  const { te, t, terr } = useLang();
   const [userId, setUserId] = useState("");
   const [password, setPassword] = useState("");
   const [remember, setRemember] = useState(true);
@@ -63,28 +68,34 @@ function Login({ onLogin, go }) {
 
   return (
     <form onSubmit={submit}>
-      <h2>Log in</h2>
-      <p className="muted">Farmers use their Farmer ID (e.g. TS1002). Staff use their department user ID.</p>
-      <label>User ID</label>
+      <h2>{t("Log in")}</h2>
+      <p className="muted">{t("Farmers use their Farmer ID (e.g. TS1002). Staff use their department user ID.",
+        "రైతులు తమ రైతు ID (ఉదా. TS1002) వాడండి. సిబ్బంది తమ శాఖ యూజర్ ID వాడండి.")}</p>
+      <label>{t("User ID")}</label>
       <input value={userId} onChange={(e) => setUserId(e.target.value)} autoComplete="username" autoFocus required />
-      <label>Password</label>
+      <label>{t("Password")}</label>
       <PasswordInput value={password} onChange={setPassword} show={show} setShow={setShow} autoComplete="current-password" />
       <div className="row between auth-row">
-        <label className="check"><input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} /> Remember me</label>
-        <a onClick={() => go("forgot")}>Forgot password?</a>
+        <label className="check"><input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} /> {t("Remember me")}</label>
+        <a onClick={() => go("forgot")}>{t("Forgot password?")}</a>
       </div>
-      {error && <div className="error">{error}</div>}
-      <button className="primary full" disabled={busy}>{busy ? "Logging in…" : "Log in"}</button>
-      <p className="center muted">New farmer? <a onClick={() => go("register")}>Create an account</a></p>
+      {error && <div className="error">{terr(error)}</div>}
+      <button className="primary full" disabled={busy}>{busy ? t("Logging in…", "లాగిన్ అవుతోంది…") : t("Log in")}</button>
+      <p className="center muted">{t("New farmer?", "కొత్త రైతా?")} <a onClick={() => go("register")}>{t("Create an account", "ఖాతా తెరవండి")}</a></p>
       <details className="demo-accounts">
-        <summary>Demo accounts</summary>
-        <p>See the <b>Demo accounts</b> table in README.md for the user IDs and passwords of each role (Admin, Contributor, Reviewer, BV Central, Farmer).</p>
+        <summary>{t("Demo accounts", "డెమో ఖాతాలు")}</summary>
+        {te ? (
+          <p>ప్రతి పాత్ర (Admin, Contributor, Reviewer, BV Central, Farmer) యూజర్ ID, పాస్‌వర్డ్ కోసం README.md లోని <b>Demo accounts</b> పట్టిక చూడండి.</p>
+        ) : (
+          <p>See the <b>Demo accounts</b> table in README.md for the user IDs and passwords of each role (Admin, Contributor, Reviewer, BV Central, Farmer).</p>
+        )}
       </details>
     </form>
   );
 }
 
 function Register({ go }) {
+  const { t, terr } = useLang();
   const [f, setF] = useState({ farmer_id: "", mobile: "", password: "", confirm: "" });
   const [show, setShow] = useState(false);
   const [error, setError] = useState("");
@@ -95,7 +106,8 @@ function Register({ go }) {
     setError("");
     try {
       const u = await api.register(f);
-      go("login", `Account created for ${u.name}. You can log in with Farmer ID ${u.user_id}.`);
+      go("login", [`Account created for ${u.name}. You can log in with Farmer ID ${u.user_id}.`,
+        `${u.name} గారి ఖాతా తెరవబడింది. రైతు ID ${u.user_id} తో లాగిన్ చేయండి.`]);
     } catch (err) {
       setError(err.message);
     }
@@ -103,26 +115,29 @@ function Register({ go }) {
 
   return (
     <form onSubmit={submit}>
-      <h2>Farmer sign-up</h2>
-      <p className="muted">Use the Farmer ID and mobile number registered with your Agriculture Extension Officer.</p>
-      <label>Farmer ID</label>
-      <input value={f.farmer_id} onChange={set("farmer_id")} placeholder="e.g. TS1010" required />
-      <label>Registered mobile number</label>
-      <input value={f.mobile} onChange={set("mobile")} inputMode="numeric" maxLength={10} placeholder="10-digit mobile" required />
-      <label>Create password</label>
+      <h2>{t("Farmer sign-up", "రైతు నమోదు")}</h2>
+      <p className="muted">{t("Use the Farmer ID and mobile number registered with your Agriculture Extension Officer.",
+        "మీ వ్యవసాయ విస్తరణ అధికారి (AEO) వద్ద నమోదైన రైతు ID, మొబైల్ నంబర్ వాడండి.")}</p>
+      <label>{t("Farmer ID")}</label>
+      <input value={f.farmer_id} onChange={set("farmer_id")} placeholder={t("e.g. TS1010", "ఉదా. TS1010")} required />
+      <label>{t("Registered mobile number", "నమోదైన మొబైల్ నంబర్")}</label>
+      <input value={f.mobile} onChange={set("mobile")} inputMode="numeric" maxLength={10} placeholder={t("10-digit mobile", "10 అంకెల మొబైల్ నంబర్")} required />
+      <label>{t("Create password", "పాస్‌వర్డ్ పెట్టుకోండి")}</label>
       <PasswordInput value={f.password} onChange={set("password")} show={show} setShow={setShow} autoComplete="new-password" />
       <Strength password={f.password} />
-      <label>Confirm password</label>
+      <label>{t("Confirm password", "పాస్‌వర్డ్ మళ్లీ రాయండి")}</label>
       <PasswordInput value={f.confirm} onChange={set("confirm")} show={show} setShow={setShow} autoComplete="new-password" />
-      {error && <div className="error">{error}</div>}
-      <button className="primary full">Create account</button>
-      <p className="center muted">Already registered? <a onClick={() => go("login")}>Log in</a></p>
-      <p className="hint">Demo tip: staff can find farmer IDs and mobile numbers in Farmer Services.</p>
+      {error && <div className="error">{terr(error)}</div>}
+      <button className="primary full">{t("Create account", "ఖాతా తెరవండి")}</button>
+      <p className="center muted">{t("Already registered?", "ఇప్పటికే ఖాతా ఉందా?")} <a onClick={() => go("login")}>{t("Log in")}</a></p>
+      <p className="hint">{t("Demo tip: staff can find farmer IDs and mobile numbers in Farmer Services.",
+        "డెమో సూచన: రైతు ID లు, మొబైల్ నంబర్లు సిబ్బంది 'రైతు సేవలు'లో చూడవచ్చు.")}</p>
     </form>
   );
 }
 
 function Forgot({ go, onSent }) {
+  const { t, terr } = useLang();
   const [userId, setUserId] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -143,18 +158,20 @@ function Forgot({ go, onSent }) {
 
   return (
     <form onSubmit={submit}>
-      <h2>Forgot password</h2>
-      <p className="muted">Enter your user ID. We'll send a 6-digit code to your registered mobile number.</p>
-      <label>User ID / Farmer ID</label>
+      <h2>{t("Forgot password", "పాస్‌వర్డ్ మర్చిపోయారా?")}</h2>
+      <p className="muted">{t("Enter your user ID. We'll send a 6-digit code to your registered mobile number.",
+        "మీ యూజర్ ID రాయండి. మీ నమోదైన మొబైల్ నంబర్‌కు 6 అంకెల కోడ్ పంపుతాం.")}</p>
+      <label>{t("User ID / Farmer ID", "యూజర్ ID / రైతు ID")}</label>
       <input value={userId} onChange={(e) => setUserId(e.target.value)} autoFocus required />
-      {error && <div className="error">{error}</div>}
-      <button className="primary full" disabled={busy}>{busy ? "Sending…" : "Send code"}</button>
-      <p className="center muted"><a onClick={() => go("login")}>← Back to login</a></p>
+      {error && <div className="error">{terr(error)}</div>}
+      <button className="primary full" disabled={busy}>{busy ? t("Sending…", "పంపుతున్నాం…") : t("Send code", "కోడ్ పంపండి")}</button>
+      <p className="center muted"><a onClick={() => go("login")}>{t("← Back to login", "← లాగిన్‌కు వెనక్కి")}</a></p>
     </form>
   );
 }
 
 function Reset({ info, go }) {
+  const { te, t, terr } = useLang();
   const [f, setF] = useState({ otp: "", password: "", confirm: "" });
   const [show, setShow] = useState(false);
   const [error, setError] = useState("");
@@ -168,7 +185,7 @@ function Reset({ info, go }) {
     setError("");
     try {
       await api.resetPassword({ user_id: sent.user_id, ...f });
-      go("login", "Password changed. Please log in with your new password.");
+      go("login", ["Password changed. Please log in with your new password.", "పాస్‌వర్డ్ మారింది. కొత్త పాస్‌వర్డ్‌తో లాగిన్ చేయండి."]);
     } catch (err) {
       setError(err.message);
     }
@@ -182,42 +199,50 @@ function Reset({ info, go }) {
 
   return (
     <form onSubmit={submit}>
-      <h2>Reset password</h2>
-      <p className="muted">We sent a 6-digit code to <b>{sent.sent_to}</b>. It expires in {sent.expires_in_minutes} minutes.</p>
-      <div className="demo-otp">📱 Demo SMS (no real SMS in this prototype): your code is <b>{sent.demo_otp}</b></div>
-      <label>6-digit code</label>
+      <h2>{t("Reset password", "కొత్త పాస్‌వర్డ్ పెట్టండి")}</h2>
+      {te ? (
+        <p className="muted"><b>{sent.sent_to}</b> కు 6 అంకెల కోడ్ పంపాం. ఇది {sent.expires_in_minutes} నిమిషాల వరకే పనిచేస్తుంది.</p>
+      ) : (
+        <p className="muted">We sent a 6-digit code to <b>{sent.sent_to}</b>. It expires in {sent.expires_in_minutes} minutes.</p>
+      )}
+      <div className="demo-otp">
+        📱 {t("Demo SMS (no real SMS in this prototype): your code is", "డెమో SMS (ఈ నమూనా యాప్‌లో నిజమైన SMS రాదు): మీ కోడ్")} <b>{sent.demo_otp}</b>
+      </div>
+      <label>{t("6-digit code", "6 అంకెల కోడ్")}</label>
       <input value={f.otp} onChange={set("otp")} inputMode="numeric" maxLength={6} autoFocus required />
-      <label>New password</label>
+      <label>{t("New password", "కొత్త పాస్‌వర్డ్")}</label>
       <PasswordInput value={f.password} onChange={set("password")} show={show} setShow={setShow} autoComplete="new-password" />
       <Strength password={f.password} />
-      <label>Confirm new password</label>
+      <label>{t("Confirm new password", "కొత్త పాస్‌వర్డ్ మళ్లీ రాయండి")}</label>
       <PasswordInput value={f.confirm} onChange={set("confirm")} show={show} setShow={setShow} autoComplete="new-password" />
-      {error && <div className="error">{error}</div>}
-      <button className="primary full">Reset password</button>
-      <p className="center muted"><a onClick={resend}>Resend code</a> · <a onClick={() => go("login")}>Back to login</a></p>
+      {error && <div className="error">{terr(error)}</div>}
+      <button className="primary full">{t("Reset password", "పాస్‌వర్డ్ మార్చండి")}</button>
+      <p className="center muted"><a onClick={resend}>{t("Resend code", "కోడ్ మళ్లీ పంపండి")}</a> · <a onClick={() => go("login")}>{t("Back to login", "లాగిన్‌కు వెనక్కి")}</a></p>
     </form>
   );
 }
 
 export function PasswordInput({ value, onChange, show, setShow, autoComplete }) {
+  const { t } = useLang();
   return (
     <div className="pw">
       <input type={show ? "text" : "password"} value={value} onChange={(e) => onChange(e.target.value)} autoComplete={autoComplete} required />
-      <button type="button" onClick={() => setShow(!show)} title={show ? "Hide password" : "Show password"}>{show ? "🙈" : "👁️"}</button>
+      <button type="button" onClick={() => setShow(!show)} title={show ? t("Hide password", "పాస్‌వర్డ్ దాచండి") : t("Show password", "పాస్‌వర్డ్ చూపించండి")}>{show ? "🙈" : "👁️"}</button>
     </div>
   );
 }
 
 export function Strength({ password }) {
+  const { t } = useLang();
   const checks = [
-    [password.length >= 8, "8+ characters"],
-    [/[A-Za-z]/.test(password), "a letter"],
-    [/\d/.test(password), "a number"],
-    [/[^A-Za-z0-9]/.test(password), "a symbol (recommended)"],
+    [password.length >= 8, t("8+ characters", "8+ అక్షరాలు")],
+    [/[A-Za-z]/.test(password), t("a letter", "ఒక అక్షరం")],
+    [/\d/.test(password), t("a number", "ఒక అంకె")],
+    [/[^A-Za-z0-9]/.test(password), t("a symbol (recommended)", "@ # వంటి గుర్తు (మంచిది)")],
   ];
   return (
     <div className="strength">
-      {checks.map(([ok, label]) => <span key={label} className={ok ? "ok" : ""}>{ok ? "✓" : "○"} {label}</span>)}
+      {checks.map(([ok, label], i) => <span key={i} className={ok ? "ok" : ""}>{ok ? "✓" : "○"} {label}</span>)}
     </div>
   );
 }

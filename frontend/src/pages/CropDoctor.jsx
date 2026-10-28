@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "../api.jsx";
+import { useLang } from "../i18n.jsx";
 
 const CROPS = ["Paddy", "Cotton", "Maize", "Chilli", "Red gram", "Groundnut", "Turmeric", "Soybean"];
 
@@ -14,7 +15,8 @@ const L = {
     days: "days", method: "How", reason: "Why this", chemical: "Chemical", organic: "Organic / low-cost", conf: "confidence",
     mock: "Mock AI mode: the photo is not really analysed - a matching problem is picked from the library. Add an API key for real photo analysis.",
     disclaimer: "Doses are demo values based on common recommendations. Always read the product label and confirm with your AEO.",
-    forArea: "for {a} acre(s)",
+    forArea: "for {a} acre(s)", aiModel: "AI model", all: "All", files: "JPG / PNG, max 8 MB", recommended: "Recommended", perAcre: "Per acre",
+    savedA: "📜 Saved to your ", savedLink: "History", savedB: ". After you use the remedy, tell us the result and send a photo from the 🔔 bell at the top.",
   },
   te: {
     title: "పంట వైద్యుడు", sub: "తెగులు సోకిన మొక్క ఫోటో పంపండి. సమస్యను గుర్తించి, ఏ మందు, ఎంత మోతాదు, ఎప్పుడు పిచికారీ చేయాలో చెబుతాం.",
@@ -26,12 +28,28 @@ const L = {
     days: "రోజులు", method: "ఎలా", reason: "ఎందుకు", chemical: "రసాయన మందు", organic: "సేంద్రియ / తక్కువ ఖర్చు", conf: "నమ్మకం",
     mock: "మాక్ AI మోడ్: ఫోటో నిజంగా పరిశీలించబడలేదు. నిజమైన విశ్లేషణ కోసం API కీ జోడించండి.",
     disclaimer: "మోతాదులు డెమో విలువలు. మందు లేబుల్ చదివి, మీ AEO తో నిర్ధారించుకోండి.",
-    forArea: "{a} ఎకరాలకు",
+    forArea: "{a} ఎకరాలకు", aiModel: "AI మోడల్", all: "అన్నీ", files: "JPG / PNG, 8 MB వరకు", recommended: "సిఫార్సు చేసినది", perAcre: "ఎకరానికి",
+    savedA: "📜 మీ ", savedLink: "చరిత్ర", savedB: "లో సేవ్ అయింది. మందు వాడిన తర్వాత పైన 🔔 గంటలో ఫలితం, ఫోటో పంపండి.",
   },
 };
 
+// How to apply each product (the backend sends English only)
+const METHOD_TE = {
+  "Foliar spray": "ఆకులపై పిచికారీ",
+  "Apply a pinch into each whorl": "ప్రతి సుడిలో చిటికెడు వేయండి",
+  "Broadcast granules in standing water": "నిలువ నీటిలో గుళికలు చల్లండి",
+  "Hang just above crop canopy": "పంట పైభాగానికి కొంచెం పైన వేలాడదీయండి",
+  "Install traps above crop height": "పంట ఎత్తు కంటే పైన బుట్టలు పెట్టండి",
+  "Install traps at crop height": "పంట ఎత్తులో బుట్టలు పెట్టండి",
+  "Mix with manure and apply to soil": "పశువుల ఎరువుతో కలిపి నేలకు వేయండి",
+  "Soil drench around the plant base": "మొక్క మొదలు చుట్టూ నేలను తడపండి",
+  "Spray covering the underside of leaves": "ఆకుల అడుగు భాగం తడిచేలా పిచికారీ",
+  "Spray directed at the base of plants": "మొక్కల మొదలుకు పిచికారీ",
+  "Spray directed into the whorl": "సుడిలోకి పిచికారీ",
+};
+
 export default function CropDoctor() {
-  const [lang, setLang] = useState("en");
+  const { lang, te, tv, tc, terr } = useLang();
   const [crop, setCrop] = useState("");
   const [acres, setAcres] = useState(1);
   const [provider, setProvider] = useState("claude");
@@ -66,6 +84,7 @@ export default function CropDoctor() {
     form.append("provider", provider);
     form.append("lang", lang);
     if (crop) form.append("crop", crop);
+    form.append("acres", acres);
     try {
       const res = await api.diagnose(form);
       setResult(res);
@@ -85,13 +104,7 @@ export default function CropDoctor() {
     <div className="stack">
       <div className="doctor-top">
         <div className="panel">
-          <div className="row between">
-            <h2>🩺 {t.title}</h2>
-            <div className="seg small-inline">
-              <button className={lang === "te" ? "on" : ""} onClick={() => setLang("te")}>తెలుగు</button>
-              <button className={lang === "en" ? "on" : ""} onClick={() => setLang("en")}>English</button>
-            </div>
-          </div>
+          <h2>🩺 {t.title}</h2>
           <p className="muted">{t.sub}</p>
 
           <div className="form-grid">
@@ -99,7 +112,7 @@ export default function CropDoctor() {
               <label>{t.crop}</label>
               <select value={crop} onChange={(e) => setCrop(e.target.value)}>
                 <option value="">{t.notSure}</option>
-                {CROPS.map((c) => <option key={c}>{c}</option>)}
+                {CROPS.map((c) => <option key={c} value={c}>{tc(c)}</option>)}
               </select>
             </div>
             <div>
@@ -107,7 +120,7 @@ export default function CropDoctor() {
               <input type="number" min="0.1" max="100" step="0.5" value={acres} onChange={(e) => setAcres(Math.max(0.1, Number(e.target.value) || 1))} />
             </div>
             <div>
-              <label>AI model</label>
+              <label>{t.aiModel}</label>
               <div className="seg">
                 <button className={provider === "claude" ? "on" : ""} onClick={() => setProvider("claude")}>Claude</button>
                 <button className={provider === "gpt" ? "on" : ""} onClick={() => setProvider("gpt")}>ChatGPT</button>
@@ -117,10 +130,10 @@ export default function CropDoctor() {
 
           <div className={`dropzone ${preview ? "has" : ""}`} onClick={() => fileRef.current.click()}
                onDragOver={(e) => e.preventDefault()} onDrop={(e) => { e.preventDefault(); pick(e.dataTransfer.files[0]); }}>
-            {preview ? <img src={preview} alt="crop" /> : <div><div className="big-icon">📷</div>{t.photo}<br /><small className="muted">JPG / PNG, max 8 MB</small></div>}
+            {preview ? <img src={preview} alt="crop" /> : <div><div className="big-icon">📷</div>{t.photo}<br /><small className="muted">{t.files}</small></div>}
           </div>
           <input ref={fileRef} type="file" accept="image/*" capture="environment" hidden onChange={(e) => pick(e.target.files[0])} />
-          {error && <div className="error">{error}</div>}
+          {error && <div className="error">{terr(error)}</div>}
           <button className="primary full" disabled={!file || busy} onClick={detect}>{busy ? t.detecting : t.detect}</button>
         </div>
 
@@ -128,14 +141,14 @@ export default function CropDoctor() {
           <h3>{t.library}</h3>
           <p className="muted small">{t.libSub}</p>
           <div className="chips">
-            {["All", ...CROPS].map((c) => <button key={c} className={filter === c ? "on" : ""} onClick={() => setFilter(c)}>{c}</button>)}
+            {["All", ...CROPS].map((c) => <button key={c} className={filter === c ? "on" : ""} onClick={() => setFilter(c)}>{c === "All" ? t.all : tc(c)}</button>)}
           </div>
           <div className="lib-list">
             {lib?.diseases.filter((d) => filter === "All" || d.crop === filter).map((d) => (
               <div key={d.id} className={`lib-item ${shown?.id === d.id ? "sel" : ""}`}
                    onClick={() => { setBrowse(d.id); setTimeout(() => resultRef.current?.scrollIntoView({ behavior: "smooth" }), 50); }}>
-                <b>{lang === "te" ? d.name_te : d.name}</b>
-                <small className="muted">{lang === "te" ? d.crop_te : d.crop} · {d.type}</small>
+                <b>{te ? d.name_te : d.name}</b>
+                <small className="muted">{te ? d.crop_te : d.crop} · {tv(d.type)}</small>
               </div>
             ))}
           </div>
@@ -143,6 +156,11 @@ export default function CropDoctor() {
       </div>
 
       <div ref={resultRef} />
+      {result?.history_id && !browse && (
+        <div className="saved-note">
+          {t.savedA}<a onClick={() => (location.hash = "history")}>{t.savedLink}</a>{t.savedB}
+        </div>
+      )}
       {result && !browse && result.diagnosis.status !== "detected" && (
         <div className="panel">
           <h2>{result.diagnosis.name}</h2>
@@ -151,21 +169,20 @@ export default function CropDoctor() {
         </div>
       )}
       {shown && (
-        <Report d={shown} t={t} lang={lang} acres={acres} tank={lib.sprayer_tank_l} safety={lib.safety[lang]}
+        <Report d={shown} t={t} te={te} tv={tv} acres={acres} tank={lib.sprayer_tank_l} safety={lib.safety[lang]}
                 diag={!browse ? result?.diagnosis : null} mode={!browse ? result?.mode : null} />
       )}
     </div>
   );
 }
 
-function Report({ d, t, lang, acres, tank, safety, diag, mode }) {
-  const te = lang === "te";
+function Report({ d, t, te, tv, acres, tank, safety, diag, mode }) {
   const groups = [["Chemical", t.chemical], ["Organic", t.organic]];
   return (
     <div className="panel report">
       <div className="report-head">
         <div>
-          <span className="tag stage">{d.type}</span>
+          <span className="tag stage">{tv(d.type)}</span>
           <h2>{te ? d.name_te : d.name}</h2>
           <p className="muted">{te ? d.crop_te : d.crop}</p>
         </div>
@@ -192,7 +209,7 @@ function Report({ d, t, lang, acres, tank, safety, diag, mode }) {
           <div key={kind}>
             <h4 className={kind === "Organic" ? "ok" : ""}>{label}</h4>
             <div className="treat-grid">
-              {rows.map((x, i) => <Treatment key={x.product} x={x} t={t} acres={acres} tank={tank} first={kind === "Chemical" && i === 0} />)}
+              {rows.map((x, i) => <Treatment key={x.product} x={x} t={t} te={te} acres={acres} tank={tank} first={kind === "Chemical" && i === 0} />)}
             </div>
           </div>
         );
@@ -213,16 +230,20 @@ const fmt = (n, unit) => {
   return `${+n.toFixed(1)} ${unit}`;
 };
 
-function Treatment({ x, t, acres, tank, first }) {
+function Treatment({ x, t, te, acres, tank, first }) {
+  const { tm } = useLang();
   const perLitre = x.per === "litre";
+  // Telugu where the data has it; medicine names show the English bottle label too
+  const f = (k) => (te && x[`${k}_te`]) || x[k];
+  const method = te ? x.method_te || METHOD_TE[x.method] || x.method : x.method;
   const water = perLitre ? x.water_l_per_acre * acres : 0;
   return (
     <div className={`treat ${first ? "best" : ""}`}>
       <div className="row between">
-        <b>{x.product}</b>
-        {first && <span className="pill green">Recommended</span>}
+        <b>{tm(x.product)}</b>
+        {first && <span className="pill green">{t.recommended}</span>}
       </div>
-      <p className="small muted">{t.reason}: {x.reason}</p>
+      <p className="small muted">{t.reason}: {f("reason")}</p>
       <div className="dose-grid">
         {perLitre ? (
           <>
@@ -234,14 +255,14 @@ function Treatment({ x, t, acres, tank, first }) {
           </>
         ) : (
           <>
-            <div><small>Per acre</small><b>{x.dose} {x.unit}</b></div>
+            <div><small>{t.perAcre}</small><b>{x.dose} {x.unit}</b></div>
             <div className="hl"><small>{t.buy}</small><b>{fmt(x.dose * acres, x.unit)}</b></div>
           </>
         )}
       </div>
-      <div className="small"><b>{t.method}:</b> {x.method}</div>
-      <div className="small"><b>{t.when}:</b> {x.when}</div>
-      <div className="small"><b>{t.repeat}:</b> {x.repeat}</div>
+      <div className="small"><b>{t.method}:</b> {method}</div>
+      <div className="small"><b>{t.when}:</b> {f("when")}</div>
+      <div className="small"><b>{t.repeat}:</b> {f("repeat")}</div>
       {x.phi_days && <div className="small"><b>{t.phi}:</b> {x.phi_days} {t.days}</div>}
     </div>
   );

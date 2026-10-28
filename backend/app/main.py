@@ -12,11 +12,11 @@ import io  # noqa: E402
 
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile  # noqa: E402
 from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
-from fastapi.responses import FileResponse, JSONResponse  # noqa: E402
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse  # noqa: E402
 from fastapi.staticfiles import StaticFiles  # noqa: E402
 from pydantic import BaseModel  # noqa: E402
 
-from . import ai, assistant, auth, data, diseases, pipeline  # noqa: E402
+from . import ai, assistant, auth, data, diseases, history, pipeline, profiles, report, seasons, terms  # noqa: E402
 
 app = FastAPI(title="Telangana Bharat Vistaar - Rythu Mitra API")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
@@ -24,7 +24,7 @@ pool = ThreadPoolExecutor(max_workers=8)
 
 # API paths that work without logging in
 PUBLIC_PATHS = {"/api/status", "/api/auth/login", "/api/auth/register", "/api/auth/forgot-password",
-                "/api/auth/reset-password"}
+                "/api/auth/reset-password", "/api/terms"}
 
 
 def _token(request):
@@ -35,6 +35,7 @@ def _token(request):
 @app.middleware("http")
 async def require_login(request: Request, call_next):
     path = request.url.path
+    profiles.sync()  # pick up profile edits saved by the Streamlit app
     if path.startswith("/api/") and path not in PUBLIC_PATHS and request.method != "OPTIONS":
         user = auth.user_for_token(_token(request))
         if not user:
@@ -70,6 +71,8 @@ class ChatIn(BaseModel):
     provider: str = "claude"
     farmer_id: str | None = None
     channel: str = "Web chatbot"
+    lang: str | None = None  # app language switch; None = detect from the question
+    log: bool = True  # False when an old reply is only redone in the other language
 
 
 class CompareIn(BaseModel):
@@ -82,6 +85,46 @@ class GrievanceIn(BaseModel):
     category: str
     description: str
     channel: str = "Web chatbot"
+
+
+class PlotIn(BaseModel):
+    survey_no: str
+    area_acres: float
+    crop: str
+    soil: str
+    irrigation: str
+    season: str = "Kharif"
+    sown_on: str | None = None     # date the crop was sown (YYYY-MM-DD)
+    harvest_by: str | None = None  # date the harvest is expected
+
+
+class ProfileIn(BaseModel):
+    name: str
+    village: str
+    district: str
+    age: int
+    gender: str
+    plots: list[PlotIn]
+
+
+class FeedbackIn(BaseModel):
+    used: str
+    product: str | None = None
+    applied_on: str | None = None
+    result: str | None = None
+    reason: str | None = None
+    notes: str | None = None
+
+
+class SeasonIn(BaseModel):
+    plot: str | None = None
+    crop: str
+    season: str = "Kharif"
+    start: str
+    end: str | None = None
+    area_acres: float
+    yield_qtl: float | None = None
+    notes: str | None = None
 
 
 class AdvanceIn(BaseModel):
@@ -131,6 +174,12 @@ def _log(gathered, provider, channel, farmer_id=None):
         "channel": channel, "model": provider, "district": farmer["district"] if farmer else "Unknown",
         "helpful": True,
     })
+
+
+@app.get("/api/terms")
+def telugu_terms():
+    """Telugu words for data values and common screen words (public: the login page needs them)."""
+    return {"values": terms.VALUES, "ui": terms.UI, "errors": terms.ERRORS, "medicines": terms.MEDICINES}
 
 
 @app.get("/api/status")
@@ -185,9 +234,10 @@ def change_password(body: ChangePasswordIn, request: Request):
 def chat(body: ChatIn, request: Request):
     provider = _provider(body.provider)
     farmer_id = _own_farmer_id(request, body.farmer_id)
-    gathered = assistant.gather(body.message, farmer_id)
+    gathered = assistant.gather(body.message, farmer_id, lang=body.lang)
     res = ai.answer(provider, body.message, gathered)
-    _log(gathered, provider, body.channel, farmer_id)
+    if body.log:
+        _log(gathered, provider, body.channel, farmer_id)
     return {**res, "intent": gathered["intent"], "lang": gathered["lang"], "stage": gathered["stage"],
             "sources": gathered["sources"], "needs_login": gathered["needs_login"]}
 
@@ -201,16 +251,34 @@ def compare(body: CompareIn, request: Request):
             "results": {p: f.result() for p, f in futures.items()}}
 
 
+@app.post("/api/transcribe")
+async def transcribe(file: UploadFile = File(...), lang: str = Form("te")):
+    """A recorded voice message -> text (live mode only; mock mode returns text: null)."""
+    audio = await file.read()
+    if len(audio) > 10 * 1024 * 1024:
+        raise HTTPException(413, "Recording too long (max 10 MB)")
+    return {"text": ai.transcribe(audio, file.filename or "voice.webm", lang)}
+
+
 @app.post("/api/diagnose")
-async def diagnose(file: UploadFile = File(...), provider: str = Form("claude"), lang: str = Form("en"),
-                   crop: str | None = Form(None)):
+async def diagnose(request: Request, file: UploadFile = File(...), provider: str = Form("claude"),
+                   lang: str = Form("en"), crop: str | None = Form(None), acres: float | None = Form(None),
+                   source: str = Form("Crop Doctor")):
     img = await file.read()
     if len(img) > 8 * 1024 * 1024:
         raise HTTPException(413, "Image too large (max 8 MB)")
     res = ai.diagnose(_provider(provider), img, file.content_type or "image/jpeg", lang, crop or None)
     data.QUERY_HISTORY.append({"date": date.today().isoformat(), "intent": "pest_diagnosis", "lang": lang,
                                "channel": "Web chatbot", "model": provider, "district": "Unknown", "helpful": True})
-    return {**res, "stage": "Image-based crop/pest diagnosis", "sources": ["Crop Doctor disease library (dummy)"]}
+    # Farmers get every detected disease saved to their History, to give feedback on later
+    u = _user(request)
+    saved = None
+    if u["role"] == "farmer" and res["diagnosis"]["status"] == "detected":
+        saved = history.add(u["farmer_id"], res["diagnosis"]["disease_id"], res["diagnosis"]["confidence"],
+                            acres, "Chat photo" if source == "Chat" else "Crop Doctor", photo=img)
+    both = {l: ai.diagnosis_in(res["diagnosis"], l) for l in ("te", "en")}  # follows the language switch
+    return {**res, "both": both, "stage": "Image-based crop/pest diagnosis",
+            "sources": ["Crop Doctor disease library (dummy)"], "history_id": saved and saved["id"]}
 
 
 @app.get("/api/diseases")
@@ -239,7 +307,95 @@ def farmer(farmer_id: str, request: Request):
     apps = [assistant._app_view(a) for a in f["applications"]]
     griev = [g for g in data.GRIEVANCES if g["farmer_id"] == f["farmer_id"]]
     return {**f, "applications": apps, "grievances": griev, "weather": data.WEATHER[f["district"]],
-            "advisories": {c: data.ADVISORIES[c] for c in f["crops"]}}
+            "advisories": {c: data.ADVISORIES[c] for c in f["crops"] if c in data.ADVISORIES}}
+
+
+@app.get("/api/profile-options")
+def profile_options():
+    return profiles.options()
+
+
+@app.put("/api/farmers/{farmer_id}")
+def update_farmer(farmer_id: str, body: ProfileIn, request: Request):
+    fid = _own_farmer_id(request, farmer_id)
+    try:
+        profiles.update(fid, body.model_dump())
+    except profiles.ProfileError as e:
+        raise HTTPException(400, str(e))
+    return farmer(fid, request)
+
+
+# ---- Crop health history (Crop Doctor follow-up) ----
+
+@app.get("/api/history")
+def crop_history(request: Request):
+    u = _user(request)
+    rows = history.records(u["farmer_id"] if u["role"] == "farmer" else None)
+    return {"records": history.with_photos(rows), "summary": history.summary(rows), "options": history.options()}
+
+
+@app.get("/api/history/report")
+def history_report(request: Request, lang: str = "te", farmer_id: str | None = None):
+    """My history as one printable page (download it, or print / save as PDF)."""
+    fid = _own_farmer_id(request, farmer_id or "")
+    if not fid:
+        raise HTTPException(400, "Choose a farmer first.")
+    try:
+        return HTMLResponse(report.build(fid, "en" if lang == "en" else "te"))
+    except history.HistoryError as e:
+        raise HTTPException(404, str(e))
+
+
+@app.post("/api/history/{record_id}/feedback")
+def history_feedback(record_id: str, body: FeedbackIn, request: Request):
+    try:
+        return history.save_feedback(record_id, _user(request), body.model_dump())
+    except history.HistoryError as e:
+        raise HTTPException(400, str(e))
+
+
+@app.post("/api/history/{record_id}/photo")
+async def history_photo(record_id: str, request: Request, file: UploadFile = File(...), kind: str = Form("after")):
+    """kind: 'after' (the crop once the remedy was used) or 'medicine' (the bottle/packet used).
+    The 'before' photo is saved by /api/diagnose."""
+    img = await file.read()
+    if len(img) > 8 * 1024 * 1024:
+        raise HTTPException(413, "Image too large (max 8 MB)")
+    try:
+        return history.save_photo(record_id, kind, img, _user(request))
+    except history.HistoryError as e:
+        raise HTTPException(400, str(e))
+
+
+# ---- Crop history: which crop on which plot, month to month ----
+
+def _season_call(fn, *args):
+    try:
+        return fn(*args)
+    except seasons.SeasonError as e:
+        raise HTTPException(400, str(e))
+
+
+@app.get("/api/seasons/{farmer_id}")
+def crop_seasons(farmer_id: str, request: Request):
+    fid = _own_farmer_id(request, farmer_id)
+    return {"records": _season_call(seasons.records, fid), "options": _season_call(seasons.options, fid)}
+
+
+@app.post("/api/seasons/{farmer_id}")
+def add_season(farmer_id: str, body: SeasonIn, request: Request):
+    return _season_call(seasons.add, _own_farmer_id(request, farmer_id), body.model_dump())
+
+
+@app.put("/api/seasons/{farmer_id}/{season_id}")
+def edit_season(farmer_id: str, season_id: str, body: SeasonIn, request: Request):
+    return _season_call(seasons.update, _own_farmer_id(request, farmer_id), season_id, body.model_dump())
+
+
+@app.delete("/api/seasons/{farmer_id}/{season_id}")
+def delete_season(farmer_id: str, season_id: str, request: Request):
+    _season_call(seasons.delete, _own_farmer_id(request, farmer_id), season_id)
+    return {"ok": True}
 
 
 @app.get("/api/grievances")
@@ -383,4 +539,8 @@ if DIST.exists():
     @app.get("/{path:path}")
     def spa(path: str):
         target = DIST / path
-        return FileResponse(target if path and target.is_file() else DIST / "index.html")
+        if path and target.is_file():
+            return FileResponse(target)
+        # The page must not be cached, so a new build shows up on the next refresh
+        # (the files in /assets have new names on every build, so they can be cached)
+        return FileResponse(DIST / "index.html", headers={"Cache-Control": "no-cache"})

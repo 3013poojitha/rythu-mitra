@@ -8,31 +8,47 @@ import Pipeline from "./pages/Pipeline.jsx";
 import Services from "./pages/Services.jsx";
 import Dashboard from "./pages/Dashboard.jsx";
 import About from "./pages/About.jsx";
+import History from "./pages/History.jsx";
+import WhatsAppButton from "./WhatsAppButton.jsx";
+import Bell from "./Bell.jsx";
+import { LangSwitch, useLang } from "./i18n.jsx";
 
+const START_HASH = location.hash; // remembered before the app rewrites it
 const STAFF = ["admin", "contributor", "reviewer", "bv_central"];
+// Labels are [English, Telugu]; staff-only tabs stay English
 const TABS = [
-  { id: "chat", label: "Farmer Chat", sub: "Stage 1 · Channels", Page: Chat },
-  { id: "doctor", label: "Crop Doctor", sub: "Disease & spray guide", Page: CropDoctor },
-  { id: "services", label: "Farmer Services", sub: "Stage 3 · 4", Page: Services, farmerLabel: "My Details" },
+  // Farmers chat on My Details (under their details); the chat tab is for staff testing
+  { id: "chat", label: ["Farmer Chat", "రైతు చాట్"], sub: ["Stage 1 · Channels", "దశ 1 · చాట్ ఛానెళ్లు"], Page: Chat, roles: STAFF },
+  { id: "doctor", label: ["Crop Doctor", "పంట వైద్యుడు"], sub: ["Disease & spray guide", "తెగులు & మందుల సలహా"], Page: CropDoctor },
+  { id: "services", label: ["Farmer Services", "రైతు సేవలు"], sub: ["Stage 3 · 4", "దశ 3 · 4"], Page: Services,
+    farmerLabel: ["🏠 My Details", "🏠 నా వివరాలు"], farmerSub: ["Details, chat & schemes", "వివరాలు, చాట్ & పథకాలు"] },
   { id: "compare", label: "Claude vs ChatGPT", sub: "Model testing", Page: Compare, roles: STAFF },
   { id: "pipeline", label: "Content Pipeline", sub: "Stage 2", Page: Pipeline, roles: STAFF },
   { id: "dashboard", label: "PMU Dashboard", sub: "Governance", Page: Dashboard, roles: STAFF },
-  { id: "about", label: "How it works", sub: "Mock AI", Page: About },
 ];
 
 export default function App() {
+  const { te, t, tv, loadCrops } = useLang();
+  const tt = (pair) => (Array.isArray(pair) ? t(pair[0], pair[1]) : pair);
   const [user, setUser] = useState(null);
   const [checking, setChecking] = useState(true);
   const [tab, setTab] = useState(() => location.hash.slice(1) || "chat");
+
+  // Farmers start on their own details; staff start on the chat
+  function onLogin(u) {
+    setUser(u);
+    setTab(u.role === "farmer" ? "services" : "chat");
+  }
   const [status, setStatus] = useState(null);
   const [menu, setMenu] = useState(false);
-  const [changePw, setChangePw] = useState(false);
+  const [askLogout, setAskLogout] = useState(false); // "Do you want to log out?" box
+  const [waOpen, setWaOpen] = useState(0); // goes up each time the floating WhatsApp button is tapped
 
   useEffect(() => {
     session.onExpired(() => setUser(null));
     api.status().then(setStatus).catch(() => setStatus({ error: true }));
     // Restore a saved login, if any
-    if (session.get()) api.me().then(setUser).catch(() => {}).finally(() => setChecking(false));
+    if (session.get()) api.me().then((u) => { setUser(u); if (!START_HASH && u.role === "farmer") setTab("services"); }).catch(() => {}).finally(() => setChecking(false));
     else setChecking(false);
   }, []);
   useEffect(() => {
@@ -45,75 +61,109 @@ export default function App() {
     return () => window.removeEventListener("hashchange", onHash);
   }, []);
 
+  useEffect(() => {
+    if (user) loadCrops(); // Telugu crop names
+  }, [user?.user_id]);
+
   async function logout() {
     await api.logout().catch(() => {});
     session.clear();
     setUser(null);
     setMenu(false);
+    setAskLogout(false);
   }
 
-  if (checking) return <div className="center pad">Loading…</div>;
-  if (!user) return <Auth onLogin={setUser} />;
+  if (checking) return <div className="center pad">{t("Loading…", "లోడ్ అవుతోంది…")}</div>;
+  if (!user) return <Auth onLogin={onLogin} />;
 
-  const tabs = TABS.filter((t) => !t.roles || t.roles.includes(user.role));
-  const { Page } = tabs.find((t) => t.id === tab) || tabs[0];
+  const isFarmer = user.role === "farmer";
+  const tabs = TABS.filter((x) => !x.roles || x.roles.includes(user.role))
+    .sort((a, b) => (isFarmer ? (b.id === "services") - (a.id === "services") : 0));
+  // Change password, History and How the app works open from the user menu (top right), not the tab bar
+  const MENU_PAGES = { password: ChangePassword, history: History, about: About };
+  const { Page } = MENU_PAGES[tab] ? { Page: MENU_PAGES[tab] } : tabs.find((x) => x.id === tab) || tabs[0];
   const anyMock = status?.providers && Object.values(status.providers).some((p) => p.mode === "mock");
 
   return (
     <div className="app">
+      {/* App name, user menu and tabs stay at the top while the page scrolls */}
+      <div className="sticky-head">
       <header className="topbar">
         <div className="brand">
           <div className="logo">🌾</div>
           <div>
-            <div className="brand-title">Rythu Mitra <span className="te">రైతు మిత్ర</span></div>
-            <div className="brand-sub">Telangana Agriculture Dept × Bharat Vistaar · Prototype with dummy data</div>
+            <div className="brand-title">{te ? "రైతు మిత్ర" : "Rythu Mitra"}</div>
+            <div className="brand-sub">{t("Telangana Agriculture Dept × Bharat Vistaar")} · {t("Prototype with dummy data")}</div>
           </div>
         </div>
         <div className="status">
-          {status?.providers &&
-            Object.entries(status.providers).map(([k, p]) => (
-              <span key={k} className={`pill ${p.mode === "live" ? "green" : "amber"}`} title={p.model}>
-                {p.label}: {p.mode === "live" ? "Live" : "Mock AI"}
-              </span>
-            ))}
+          {/* Mock / Live AI is shown in the yellow line under the tabs, not here */}
+          <LangSwitch className="on-dark" />
+          {user.role === "farmer" && <Bell refresh={tab} />}
           <div className="user-menu">
             <button className="user-btn" onClick={() => setMenu(!menu)}>
               <span className="initial">{user.name[0]}</span>
-              <span className="who"><b>{user.name}</b><small>{user.role_label}</small></span> ▾
+              <span className="who"><b>{user.name}</b><small>{tv(user.role_label)}</small></span> ▾
             </button>
             {menu && (
               <div className="dropdown" onMouseLeave={() => setMenu(false)}>
-                <div className="dd-head"><b>{user.user_id}</b><small>Mobile {user.mobile_masked}</small></div>
-                <button onClick={() => { setChangePw(true); setMenu(false); }}>🔑 Change password</button>
-                <button onClick={logout}>🚪 Log out</button>
+                <div className="dd-head"><b>{user.user_id}</b><small>{t("Mobile")} {user.mobile_masked}</small></div>
+                <button onClick={() => { setTab("password"); setMenu(false); }}>🔑 {t("Change password")}</button>
+                <button onClick={() => { setTab("history"); setMenu(false); }}>
+                  📜 {user.role === "farmer" ? t("My history") : t("Crop history", "పంట చరిత్ర")}
+                </button>
+                <button onClick={() => { setTab("about"); setMenu(false); }}>{t("How the app works")}</button>
+                <button onClick={() => { setAskLogout(true); setMenu(false); }}>🚪 {t("Log out")}</button>
               </div>
             )}
           </div>
         </div>
       </header>
       <nav className="tabs">
-        {tabs.map((t) => (
-          <button key={t.id} className={t.id === tab ? "tab active" : "tab"} onClick={() => setTab(t.id)}>
-            <span>{user.role === "farmer" && t.farmerLabel ? t.farmerLabel : t.label}</span>
-            <small>{t.sub}</small>
+        {tabs.map((x) => (
+          <button key={x.id} className={x.id === tab ? "tab active" : "tab"} onClick={() => { setTab(x.id); setWaOpen(0); }}>
+            <span>{tt(isFarmer && x.farmerLabel ? x.farmerLabel : x.label)}</span>
+            <small>{tt(isFarmer && x.farmerSub ? x.farmerSub : x.sub)}</small>
           </button>
         ))}
       </nav>
+      </div>
       {anyMock && tab !== "about" && (
         <div className="banner">
-          Running in <b>Mock AI mode</b> — no API keys needed. Answers come from dummy data with simulated model replies.{" "}
-          <a onClick={() => setTab("about")}>What does this mean?</a>
+          {te ? (
+            <>యాప్ ఇప్పుడు <b>మాక్ AI మోడ్</b>‌లో నడుస్తోంది — API కీలు అవసరం లేదు. జవాబులు నమూనా సమాచారం నుండి వస్తాయి; AI జవాబులు అనుకరణ మాత్రమే.</>
+          ) : (
+            <>Running in <b>Mock AI mode</b> — no API keys needed. Answers come from dummy data with simulated model replies.</>
+          )}{" "}
+          <a onClick={() => setTab("about")}>{t("What does this mean?", "దీని అర్థం ఏమిటి?")}</a>
         </div>
       )}
       <main className="content">
-        <Page user={user} />
+        <Page user={user} refreshUser={() => api.me().then(setUser).catch(() => {})} waOpen={waOpen}
+              goHome={() => setTab(isFarmer ? "services" : "chat")} />
       </main>
-      {changePw && <ChangePassword onClose={() => setChangePw(false)} />}
+      <WhatsAppButton label={t("Chat on WhatsApp", "వాట్సాప్‌లో మాట్లాడండి")}
+                      onOpen={() => { setTab(isFarmer ? "services" : "chat"); setWaOpen((n) => n + 1); }} />
+      {askLogout && (
+        <div className="modal-bg" onClick={() => setAskLogout(false)}>
+          <div className="panel modal confirm" onClick={(e) => e.stopPropagation()}>
+            <div className="confirm-icon">🚪</div>
+            <h2>{t("Log out?", "లాగ్ అవుట్ అవ్వాలా?")}</h2>
+            <p className="muted">{t("Do you want to log out of Rythu Mitra?", "మీరు రైతు మిత్ర నుండి లాగ్ అవుట్ అవ్వాలనుకుంటున్నారా?")}</p>
+            <div className="row gap-sm end">
+              <button onClick={() => setAskLogout(false)} autoFocus>{t("Cancel", "రద్దు చేయండి")}</button>
+              <button className="primary" onClick={logout}>{t("Log out")}</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-function ChangePassword({ onClose }) {
+// Change password: its own page, opened from the user menu like My history
+function ChangePassword({ goHome }) {
+  const { t, terr } = useLang();
   const [f, setF] = useState({ current: "", password: "", confirm: "" });
   const [show, setShow] = useState(false);
   const [error, setError] = useState("");
@@ -132,27 +182,34 @@ function ChangePassword({ onClose }) {
   }
 
   return (
-    <div className="modal-bg" onClick={onClose}>
-      <form className="panel modal" onClick={(e) => e.stopPropagation()} onSubmit={submit}>
-        <h2>Change password</h2>
+    <div className="pw-page">
+      <form className="panel" onSubmit={submit}>
+        <div className="row between">
+          <h2>🔑 {t("Change password")}</h2>
+          <button type="button" onClick={goHome}>← {t("Back", "వెనక్కి")}</button>
+        </div>
+        <p className="muted">{t("Passwords need 8 or more characters, with letters and numbers.", "పాస్‌వర్డ్‌లో కనీసం 8 అక్షరాలు ఉండాలి — అక్షరాలు, అంకెలు రెండూ.")}</p>
         {done ? (
           <>
-            <div className="success">Password changed successfully.</div>
-            <button type="button" className="primary full" onClick={onClose}>Close</button>
+            <div className="success">{t("Password changed successfully.", "పాస్‌వర్డ్ మారింది.")}</div>
+            <div className="row gap-sm">
+              <button type="button" className="primary" onClick={goHome}>🏠 {t("Back to main page", "ముఖ్య పేజీకి వెళ్ళండి")}</button>
+              <button type="button" onClick={() => { setDone(false); setF({ current: "", password: "", confirm: "" }); }}>{t("Change it again", "మళ్లీ మార్చండి")}</button>
+            </div>
           </>
         ) : (
           <>
-            <label>Current password</label>
+            <label>{t("Current password", "ప్రస్తుత పాస్‌వర్డ్")}</label>
             <PasswordInput value={f.current} onChange={set("current")} show={show} setShow={setShow} autoComplete="current-password" />
-            <label>New password</label>
+            <label>{t("New password", "కొత్త పాస్‌వర్డ్")}</label>
             <PasswordInput value={f.password} onChange={set("password")} show={show} setShow={setShow} autoComplete="new-password" />
             <Strength password={f.password} />
-            <label>Confirm new password</label>
+            <label>{t("Confirm new password", "కొత్త పాస్‌వర్డ్ మళ్లీ రాయండి")}</label>
             <PasswordInput value={f.confirm} onChange={set("confirm")} show={show} setShow={setShow} autoComplete="new-password" />
-            {error && <div className="error">{error}</div>}
-            <div className="row gap-sm end">
-              <button type="button" onClick={onClose}>Cancel</button>
-              <button className="primary">Save</button>
+            {error && <div className="error">{terr(error)}</div>}
+            <div className="row gap-sm">
+              <button className="primary">💾 {t("Save")}</button>
+              <button type="button" onClick={goHome}>🏠 {t("Back to main page", "ముఖ్య పేజీకి వెళ్ళండి")}</button>
             </div>
           </>
         )}

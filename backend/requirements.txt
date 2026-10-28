@@ -3,6 +3,7 @@ uvicorn[standard]>=0.30
 python-multipart>=0.0.9
 python-dotenv>=1.0
 pypdf>=4.0
+pillow>=10.0  # shrinks crop photos saved in History
 # Only needed for live mode (when you add API keys):
 anthropic>=0.70
 openai>=1.50

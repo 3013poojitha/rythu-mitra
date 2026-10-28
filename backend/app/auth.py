@@ -3,13 +3,13 @@
 * Passwords are never stored in plain text - only a salted PBKDF2 hash.
 * Users are saved to backend/users.json so sign-ups and password changes
   survive a restart. Delete that file to go back to the demo accounts.
-* Login sessions are random tokens kept in memory (a restart logs everyone out).
+* Login sessions are random tokens. Only a hash of each token is saved, in
+  backend/sessions.json, so a restart does not log anyone out.
 * Forgot password sends a 6-digit one-time code (OTP). There is no real SMS or
   email in this demo, so the API also returns the code and the screen shows it.
 """
 import hashlib
 import hmac
-import json
 import re
 import secrets
 import threading
@@ -19,6 +19,7 @@ from pathlib import Path
 from . import data
 
 USERS_FILE = Path(__file__).resolve().parents[1] / "users.json"
+SESSIONS_FILE = Path(__file__).resolve().parents[1] / "sessions.json"
 SESSION_HOURS = 8
 OTP_MINUTES = 10
 MAX_FAILED = 5
@@ -42,8 +43,9 @@ DEMO_USERS = [
 ]
 
 _lock = threading.Lock()
+_session_lock = threading.Lock()
 USERS = {}      # user_id (lower case) -> user record
-SESSIONS = {}   # token -> {"user_id", "expires"}
+SESSIONS = {}   # sha256(token) -> {"user_id", "expires"}
 OTPS = {}       # user_id (lower case) -> {"code_hash", "expires", "attempts"}
 
 
@@ -70,12 +72,31 @@ def check_strength(password):
 
 
 def _save():
-    USERS_FILE.write_text(json.dumps(list(USERS.values()), indent=1))
+    data.write_json(USERS_FILE, list(USERS.values()))
+
+
+def _th(token):
+    return hashlib.sha256((token or "").encode()).hexdigest()
+
+
+def _sync_sessions(add=None, remove=()):
+    """Merge this process's change into sessions.json. The web app and the
+    Streamlit app both use the file, so always start from what is on disk."""
+    with _session_lock:
+        now = time.time()
+        saved = {k: v for k, v in data.read_json(SESSIONS_FILE, {}).items() if v["expires"] > now}
+        saved.update(add or {})
+        for k in remove:
+            saved.pop(k, None)
+        data.write_json(SESSIONS_FILE, saved)
+        SESSIONS.clear()
+        SESSIONS.update(saved)
 
 
 def _load():
+    _sync_sessions()
     if USERS_FILE.exists():
-        for u in json.loads(USERS_FILE.read_text()):
+        for u in data.read_json(USERS_FILE, []):
             USERS[u["user_id"].lower()] = u
         return
     for d in DEMO_USERS:
@@ -135,20 +156,25 @@ def login(user_id, password):
         u["failed"], u["locked_until"] = 0, 0
         _save()
         token = secrets.token_urlsafe(32)
-        SESSIONS[token] = {"user_id": u["user_id"].lower(), "expires": time.time() + SESSION_HOURS * 3600}
+        _sync_sessions(add={_th(token): {"user_id": u["user_id"].lower(), "expires": time.time() + SESSION_HOURS * 3600}})
         return token, public(u)
 
 
 def user_for_token(token):
-    s = SESSIONS.get(token or "")
+    key = _th(token)
+    s = SESSIONS.get(key)
+    if not s and token:
+        SESSIONS.update(data.read_json(SESSIONS_FILE, {}))  # maybe created by the other app
+        s = SESSIONS.get(key)
     if not s or s["expires"] < time.time():
-        SESSIONS.pop(token or "", None)
+        if s:
+            _sync_sessions(remove=[key])
         return None
     return USERS.get(s["user_id"])
 
 
 def logout(token):
-    SESSIONS.pop(token or "", None)
+    _sync_sessions(remove=[_th(token)])
 
 
 def register(farmer_id, mobile, password, confirm):
@@ -197,8 +223,8 @@ def reset_password(user_id, otp, password, confirm):
         _save()
     OTPS.pop(u["user_id"].lower(), None)
     # Sign out every existing session for this user
-    for t in [t for t, s in SESSIONS.items() if s["user_id"] == u["user_id"].lower()]:
-        SESSIONS.pop(t)
+    _sync_sessions()
+    _sync_sessions(remove=[k for k, s in SESSIONS.items() if s["user_id"] == u["user_id"].lower()])
 
 
 def change_password(user, current, password, confirm):
@@ -212,6 +238,18 @@ def change_password(user, current, password, confirm):
     with _lock:
         user["password_hash"] = _hash(password)
         _save()
+
+
+def set_farmer_name(farmer_id, name):
+    """Called when a farmer edits their profile so the header shows the new name."""
+    with _lock:
+        changed = False
+        for u in USERS.values():
+            if u.get("farmer_id") == farmer_id and u["name"] != name:
+                u["name"] = name
+                changed = True
+        if changed:
+            _save()
 
 
 _load()

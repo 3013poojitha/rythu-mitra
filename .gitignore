@@ -7,3 +7,9 @@ backend/users.json
 # frontend/dist is committed on purpose: Render serves the pre-built UI.
 # After changing anything in frontend/src, run "npm run build" in frontend/ and commit again.
 .streamlit/secrets.toml
+backend/farmer_profiles.json
+backend/sessions.json
+backend/*.tmp
+backend/crop_history.json
+backend/crop_seasons.json
+backend/crop_photos/

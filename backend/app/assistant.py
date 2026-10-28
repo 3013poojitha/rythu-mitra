@@ -106,10 +106,12 @@ STOPWORDS = {"what", "when", "where", "which", "does", "will", "with", "about", 
              "your", "tell", "give", "today", "గురించి", "చెప్పండి", "ఏమిటి", "ఎంత"}
 
 
-def gather(question, farmer_id=None, has_image=False):
-    """Return {intent, lang, stage, facts, sources, needs_login} for a question."""
+def gather(question, farmer_id=None, has_image=False, lang=None):
+    """Return {intent, lang, stage, facts, sources, needs_login} for a question.
+    lang ("te"/"en") forces the reply language (the app's language switch);
+    without it the language is detected from the question."""
     q = " " + question.lower().strip() + " "
-    lang = detect_lang(question)
+    lang = lang if lang in ("te", "en") else detect_lang(question)
     intent = detect_intent(q, has_image)
     farmer = data.FARMER_INDEX.get((farmer_id or "").upper())
     crop = _find_crop(q)
@@ -121,7 +123,7 @@ def gather(question, farmer_id=None, has_image=False):
                 "facts": {}, "sources": [], "needs_login": True}
 
     if intent == "mandi_price":
-        crop = crop or (farmer["crops"][0] if farmer else "Paddy")
+        crop = crop or next((c for c in (farmer["crops"] if farmer else []) if c in data.BASE_PRICE), "Paddy")
         rows = [r for r in data.MANDI_PRICES if r["crop"] == crop]
         facts = {"crop": crop, "crop_te": data.CROPS[crop], "prices": rows, "msp": data.MSP.get(crop)}
         sources = ["Agmarknet mandi prices (dummy)"]
@@ -140,7 +142,7 @@ def gather(question, farmer_id=None, has_image=False):
             stage = "Stage 2 - State content"
 
     elif intent in ("crop_advisory", "pest_diagnosis") and not has_image:
-        crop = crop or (farmer["crops"][0] if farmer else None)
+        crop = crop or next((c for c in (farmer["crops"] if farmer else []) if c in data.ADVISORIES), None)
         if crop:
             facts = {"crop": crop, "crop_te": data.CROPS[crop], "advice": data.ADVISORIES[crop]}
             pest = next((p for p in data.PESTS if p["crop"] == crop), None)

@@ -68,18 +68,52 @@ Notes:
 | NISG Contributor | `nisg.contributor` | `Contrib@123` | Staff tabs; uploads documents and does Contributor steps |
 | Department Reviewer | `dept.reviewer` | `Review@123` | Staff tabs; does Reviewer approval steps |
 | Bharat Vistaar Central | `bv.central` | `Central@123` | Staff tabs; publishes to production |
-| Farmer (Anitha Reddy) | `TS1002` | `Farmer@123` | Farmer Chat, Crop Doctor, My Details (own records only) |
+| Farmer (Anitha Reddy) | `TS1002` | `Farmer@123` | My Details (with the chat), Crop Doctor, 🔔 bell, My history (own records only) |
 
 Accounts are saved in `backend/users.json`. Delete that file and restart to reset every account back to this table.
+
+## My Details (farmer home screen)
+
+A farmer who logs in lands on **🏠 My Details** first. It shows their name, village, total land, crops and each land plot (survey number, acres, crop, season, soil, water source, and when the crop was sown and is expected to be harvested, with the days left). **✏️ Edit details** lets them change their personal details and add, edit or remove plots, including the optional **🌱 Sown on** and **🧺 Harvest by** dates. Total acres and the crop list are recalculated from the plots. Mobile and bank stay read-only.
+
+Under the details is **💬 the chat** (one chat for typing and talking, see below). On the right side are five rows - 📋 Scheme applications, 💰 Payment status, 📣 Grievances, 🌦️ Weather and 🌱 Advisory - each with an icon, a short hint and a **›**; tap a row to open what it contains. On a phone the rows move under the chat.
+
+**One chat for typing and talking.** Type a question, tap a quick question, or tap **🎤**: the app says a welcome aloud in the chosen language ("రైతు మిత్రకు స్వాగతం. ఇప్పుడు మీరు మాట్లాడి మీ ప్రశ్న అడగవచ్చు." / "Welcome to Rythu Mitra. You can now talk and ask your question."), then listens, and reads the answer back. The full welcome plays the first time; after that a short "Please ask your question". Listening needs Chrome or Edge. A **📷** crop photo can be sent in the same chat. Staff still have a **Farmer Chat** tab to test any farmer. The floating **WhatsApp** button opens the same chat in WhatsApp style.
+
+Edits are saved in `backend/farmer_profiles.json` (logic in `backend/app/profiles.py`) and the chatbot uses them straight away. The React and Streamlit apps share this file, so an edit in one shows in the other. Logins are kept in `backend/sessions.json`, so restarting the server does not log anyone out. Delete that file and restart to reset every farmer to the demo data. Staff can edit any farmer from **Farmer Services**.
+
+## Telugu first (తెలుగు | English)
+
+The app opens in **Telugu**, because most Telangana farmers read Telugu, not English. A **తెలుగు | English** switch sits in the top bar and on the login card, and the browser remembers the choice. Every farmer screen follows it: login, My Details, Farmer Chat (the bot replies in the chosen language), Crop Doctor (including the spray instructions), History, the chat follow-up questions and How the app works. Data values (soil, water source, season, statuses, months) and error messages are shown in Telugu too. Medicine names show in Telugu with the English bottle label in brackets, e.g. పైమెట్రోజిన్ 50 WG (Pymetrozine 50 WG), so farmers can read them and still match the bottle in the shop. The login page always opens in Telugu. Switching to English changes everything, including earlier chat answers. Staff-only pages (Claude vs ChatGPT, Content Pipeline, PMU Dashboard) stay in English.
+
+The shared Telugu words are in `backend/app/terms.py` (served to the React app at `/api/terms`); the React language switch is in `frontend/src/i18n.jsx`.
 
 ## Login & account features
 
 - **Log in** with user ID and password; **Remember me** keeps you signed in after closing the browser.
 - **Farmer sign-up**: a farmer creates an account with their Farmer ID plus the mobile number on the department record, so someone else can't claim their ID.
 - **Forgot password → Reset password**: enter your user ID and a 6-digit code is "sent" to the registered mobile. There is no real SMS in this prototype, so the code is shown on screen and printed in the server window. The code expires in 10 minutes and allows 5 tries.
-- **Change password** from the user menu (top right), and **Log out**.
-- **Security basics**: passwords are stored only as salted hashes (PBKDF2). The account locks for 5 minutes after 5 wrong passwords. Passwords need 8+ characters with letters and numbers. Sessions expire after 8 hours, and a password reset signs out all devices.
+- **Change password** from the user menu (top right) opens its own page, with **🏠 Back to main page**. **Log out** asks "Log out?" first, with Cancel.
+- **Security basics**: passwords are stored only as salted hashes (PBKDF2). The account locks for 5 minutes after 5 wrong passwords. Passwords need 8+ characters with letters and numbers. Sessions expire after 8 hours and survive a server restart, and a password reset signs out all devices.
 - **Role-based access**: farmers only see and query their own records. Staff-only pages and APIs (Compare, Pipeline, Dashboard) are blocked for farmers in the backend, not just hidden in the UI.
+
+## Farm history (user menu → 📜 My history)
+
+The History page has two parts:
+
+**🌱 Crops grown** — which crop was on which plot, from which month to which month. A timeline shows one row per plot with a bar for each crop (green = Kharif, orange = Rabi, striped = growing now), and a list grouped by year shows the months, season, acres, harvest in quintals (and per acre), and any Crop Doctor problems found during that crop. Choose the **From** and **To** months to see any period, and filter by plot. History is a saved record only - nothing is edited here. The first time it opens, two years of past seasons are filled in from demo department records. Changing a plot's crop in **My Details** automatically closes the old crop this month and starts the new one (from the sowing month, if a **Sown on** date was given; a **Harvest by** date shows as "harvest expected").
+
+**⬇️ Download history** saves the whole history (farmer details, crops grown, problems & remedies with photos) as one page in Telugu or English; **🖨️ Print / Save as PDF** opens the print box, which can also save it as a PDF (`backend/app/report.py`, `/api/history/report`). Saved in `backend/crop_seasons.json` (logic in `backend/app/seasons.py`).
+
+**🩺 Problems & remedies** — described below.
+
+## Crop health history (Crop Doctor follow-up)
+
+Every disease Crop Doctor finds for a farmer (from a photo in Crop Doctor or in the chat) is saved automatically, together with that photo. Open **📜 My history** from the user menu (top right, above Log out). Each entry shows: the disease spotted on which crop and plot, the remedy given (dose and how much to buy), whether the farmer used it, the result (cured, improved, no change, got worse), and the photos **Before remedy → Medicine used → After remedy**. Entries are grouped by month, and the top shows how many cases are waiting and how often the remedy worked. Staff see every farmer's history with a search box.
+
+**🔔 The bell asks the questions.** A bell next to the user menu shows how many remedies are waiting. Tapping it asks one question at a time (in Telugu or English): did you use it → which product → when did you spray → how did it work (or why not). If the remedy was used, it then asks for a **💊 picture of the medicine used** and a **📷 photo of the crop now** (both optional). The answers and photos are saved to History and the count goes down. The chat no longer asks these questions.
+
+Saved in `backend/crop_history.json`, photos in `backend/crop_photos/` (logic in `backend/app/history.py`).
 
 ## Crop Doctor (disease detection & spray guide)
 
@@ -116,7 +150,7 @@ The app is built to call real Claude and ChatGPT models, but runs without keys i
 | Tab | Proposal section | What to show |
 |---|---|---|
 | **Login** | §2.8 Admin / Contributor / Reviewer roles | Log in, sign up, forgot/reset password, role-based tabs |
-| **Farmer Chat** | Stage 1 chatbot & voice bot; §2.6 Website/WhatsApp; §2.7 image diagnosis | Telugu or English questions; switch Web / WhatsApp / Voice; 🎤 voice input and 🔊 spoken replies (Chrome/Edge); 📷 pest photo |
+| **Chat** (on My Details for farmers; tab for staff) | Stage 1 chatbot & voice bot; §2.6 Website/WhatsApp; §2.7 image diagnosis | Telugu or English questions; one chat for typing and 🎤 talking (spoken welcome and spoken replies, Chrome/Edge); floating WhatsApp button; 📷 pest photo |
 | **Crop Doctor** | §2.7 image-based crop/pest diagnosis | Photo → disease → spray plan with quantities for your acres |
 | **Claude vs ChatGPT** | §2.9 testing against agreed scenarios | Same question to both models side by side; "Run all tests" scores 8 agreed scenarios |
 | **Content Pipeline** | Stage 2; §2.4 ingestion pipeline | 11 stages with Contributor / Reviewer / Bharat Vistaar roles; only Completed documents feed the chatbot |

@@ -92,6 +92,20 @@ DIAGNOSE_PROMPT = (
 )
 
 
+def transcribe(audio_bytes, filename="voice.wav", lang="te"):
+    """Turn a recorded voice message into text. Needs the OpenAI key (Whisper);
+    in mock mode there is nothing that can listen to a recording, so this returns None."""
+    if not is_live("gpt"):
+        return None
+    try:
+        from openai import OpenAI
+        res = OpenAI().audio.transcriptions.create(model="whisper-1", file=(filename, audio_bytes),
+                                                   language="te" if lang == "te" else "en")
+        return (res.text or "").strip() or None
+    except Exception:
+        return None
+
+
 def diagnose(provider, image_bytes, media_type, lang="en", crop_hint=None):
     """Identify a crop disease/pest from a photo.
 
@@ -135,7 +149,13 @@ def _diagnosis(disease_id, confidence, observed, lang):
     return {"status": "detected", "disease_id": d["id"], "confidence": confidence, "observed": observed,
             "name": d["name_te"] if te else d["name"], "crop": data.CROPS[d["crop"]] if te else d["crop"],
             "type": d["type"], "symptoms": d["symptoms_te"] if te else d["symptoms"],
-            "remedy": diseases.short_remedy(d)}
+            "remedy": diseases.short_remedy(d, te)}
+
+
+def diagnosis_in(diag, lang):
+    """The same diagnosis in the other language (for the app's language switch) - no new AI call."""
+    key = diag.get("disease_id") or ("healthy" if diag["status"] == "healthy" else None)
+    return _diagnosis(key, diag["confidence"], diag.get("observed"), lang)
 
 
 # --------------------------------------------------------------------------
@@ -300,7 +320,7 @@ def _content(g, te):
                  "To raise a new grievance, use the 'Farmer Services' tab - you'll get a tracking ID."))
 
     if intent == "land_records":
-        lines = [(f"సర్వే నం. {p['survey_no']}: {p['area_acres']} ఎకరాలు, {p['soil']}, {p['irrigation']}, పంట: {data.CROPS[p['crop']]}" if te else
+        lines = [(f"సర్వే నం. {p['survey_no']}: {p['area_acres']} ఎకరాలు, {p['soil']}, {p['irrigation']}, పంట: {data.crop_te(p['crop'])}" if te else
                   f"Survey No. {p['survey_no']}: {p['area_acres']} acres, {p['soil']} soil, {p['irrigation']}, crop: {p['crop']}")
                  for p in f["plots"]]
         return ((f"{name} గారి భూమి వివరాలు (మొత్తం {f['total_acres']} ఎకరాలు):" if te else

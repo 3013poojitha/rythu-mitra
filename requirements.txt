@@ -3,6 +3,7 @@ streamlit>=1.66.1
 pandas>=2.0
 python-dotenv>=1.0
 pypdf>=4.0
+pillow>=10.0  # shrinks crop photos saved in History
 # Only needed for live mode (when you add API keys):
 anthropic>=0.70
 openai>=1.50

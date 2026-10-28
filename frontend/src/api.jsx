@@ -68,12 +68,16 @@ export const api = {
   changePassword: (data) => request("/auth/change-password", json("POST", data)),
   diseases: () => request("/diseases"),
   status: () => request("/status"),
+  terms: () => request("/terms"),
   chat: (data) => request("/chat", json("POST", data)),
   compare: (data) => request("/compare", json("POST", data)),
   diagnose: (form) => request("/diagnose", { method: "POST", body: form }),
+  transcribe: (form) => request("/transcribe", { method: "POST", body: form }),
   evaluate: () => request("/evaluate", { method: "POST" }),
   farmers: () => request("/farmers"),
   farmer: (id) => request(`/farmers/${id}`),
+  updateFarmer: (id, data) => request(`/farmers/${id}`, json("PUT", data)),
+  profileOptions: () => request("/profile-options"),
   grievances: () => request("/grievances"),
   createGrievance: (data) => request("/grievances", json("POST", data)),
   stages: () => request("/pipeline/stages"),
@@ -81,8 +85,24 @@ export const api = {
   uploadDocument: (form) => request("/documents", { method: "POST", body: form }),
   advance: (id, role) => request(`/documents/${id}/advance`, json("POST", { role })),
   reference: () => request("/reference"),
+  history: () => request("/history"),
+  seasons: (fid) => request(`/seasons/${fid}`),
+  addSeason: (fid, data) => request(`/seasons/${fid}`, json("POST", data)),
+  editSeason: (fid, id, data) => request(`/seasons/${fid}/${id}`, json("PUT", data)),
+  deleteSeason: (fid, id) => request(`/seasons/${fid}/${id}`, { method: "DELETE" }),
+  historyFeedback: (id, data) => request(`/history/${id}/feedback`, json("POST", data)),
+  historyPhoto: (id, form) => request(`/history/${id}/photo`, { method: "POST", body: form }),
   dashboard: () => request("/dashboard"),
 };
+
+// My history as one printable HTML page (text, not JSON)
+export async function historyReport(lang, farmerId) {
+  const token = session.get();
+  const q = new URLSearchParams({ lang, ...(farmerId ? { farmer_id: farmerId } : {}) });
+  const res = await fetch(`/api/history/report?${q}`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+  if (!res.ok) throw new Error((await res.json().catch(() => ({}))).detail || `Request failed (${res.status})`);
+  return res.text();
+}
 
 // Render the small subset of markdown the bot uses: **bold** and line breaks
 export function renderText(text) {

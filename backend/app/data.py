@@ -3,6 +3,8 @@
 Everything here is fictional demo data. Numbers are realistic in shape but are
 not official figures. A fixed random seed keeps the data identical on every run.
 """
+import json
+import os
 import random
 from datetime import date, datetime, timedelta
 
@@ -32,6 +34,62 @@ CROP_ALIASES = {
     "Soybean": ["soybean", "soya", "సోయా", "సోయాబీన్"],
     "Groundnut": ["groundnut", "peanut", "verusenaga", "వేరుశనగ"],
 }
+
+# Every crop a farmer can pick for a land plot: (English, Telugu, icon, group).
+# The first 8 are the crops above, which also have prices and advisories.
+CROP_CATALOG = [
+    ("Paddy", "వరి", "🌾", "Cereals"), ("Cotton", "పత్తి", "☁️", "Commercial"), ("Maize", "మొక్కజొన్న", "🌽", "Cereals"),
+    ("Red gram", "కంది", "🫘", "Pulses"), ("Chilli", "మిరప", "🌶️", "Spices"), ("Turmeric", "పసుపు", "🟡", "Spices"),
+    ("Soybean", "సోయాబీన్", "🫛", "Oilseeds"), ("Groundnut", "వేరుశనగ", "🥜", "Oilseeds"),
+    # Cereals and millets
+    ("Jowar (Sorghum)", "జొన్న", "🌾", "Cereals"), ("Bajra (Pearl millet)", "సజ్జ", "🌾", "Cereals"),
+    ("Ragi (Finger millet)", "రాగి", "🌾", "Cereals"), ("Wheat", "గోధుమ", "🌾", "Cereals"),
+    ("Foxtail millet", "కొర్ర", "🌾", "Cereals"), ("Little millet", "సామ", "🌾", "Cereals"),
+    ("Kodo millet", "అరిక", "🌾", "Cereals"),
+    # Pulses
+    ("Bengal gram (Chickpea)", "శనగ", "🫘", "Pulses"), ("Green gram (Moong)", "పెసర", "🫘", "Pulses"),
+    ("Black gram (Urad)", "మినుము", "🫘", "Pulses"), ("Horse gram", "ఉలవ", "🫘", "Pulses"),
+    ("Cowpea", "అలసంద", "🫘", "Pulses"), ("Field bean (Lablab)", "చిక్కుడు", "🫛", "Pulses"),
+    # Oilseeds
+    ("Sunflower", "పొద్దుతిరుగుడు", "🌻", "Oilseeds"), ("Sesame (Gingelly)", "నువ్వులు", "🌱", "Oilseeds"),
+    ("Castor", "ఆముదం", "🌱", "Oilseeds"), ("Mustard", "ఆవాలు", "🌼", "Oilseeds"),
+    ("Safflower", "కుసుమ", "🌼", "Oilseeds"), ("Oil palm", "ఆయిల్ పామ్", "🌴", "Oilseeds"),
+    # Commercial
+    ("Sugarcane", "చెరకు", "🎋", "Commercial"), ("Tobacco", "పొగాకు", "🍃", "Commercial"),
+    ("Mulberry (Sericulture)", "మల్బరీ", "🌳", "Commercial"),
+    # Spices
+    ("Coriander", "ధనియాలు", "🌿", "Spices"), ("Ginger", "అల్లం", "🫚", "Spices"), ("Garlic", "వెల్లుల్లి", "🧄", "Spices"),
+    ("Fenugreek", "మెంతులు", "🌿", "Spices"),
+    # Vegetables
+    ("Onion", "ఉల్లి", "🧅", "Vegetables"), ("Tomato", "టమాట", "🍅", "Vegetables"), ("Brinjal", "వంకాయ", "🍆", "Vegetables"),
+    ("Okra (Bhendi)", "బెండ", "🥬", "Vegetables"), ("Potato", "బంగాళదుంప", "🥔", "Vegetables"),
+    ("Cabbage", "క్యాబేజీ", "🥬", "Vegetables"), ("Cauliflower", "కాలీఫ్లవర్", "🥦", "Vegetables"),
+    ("Carrot", "క్యారెట్", "🥕", "Vegetables"), ("Cucumber", "దోసకాయ", "🥒", "Vegetables"),
+    ("Bottle gourd", "సొరకాయ", "🥒", "Vegetables"), ("Bitter gourd", "కాకరకాయ", "🥒", "Vegetables"),
+    ("Ridge gourd", "బీరకాయ", "🥒", "Vegetables"), ("Drumstick (Moringa)", "మునగ", "🌿", "Vegetables"),
+    ("Beans", "బీన్స్", "🫛", "Vegetables"), ("Capsicum", "క్యాప్సికం", "🫑", "Vegetables"),
+    ("Leafy vegetables", "ఆకుకూరలు", "🥬", "Vegetables"), ("Sweet potato", "చిలగడదుంప", "🍠", "Vegetables"),
+    # Fruits
+    ("Mango", "మామిడి", "🥭", "Fruits"), ("Banana", "అరటి", "🍌", "Fruits"), ("Papaya", "బొప్పాయి", "🍈", "Fruits"),
+    ("Guava", "జామ", "🍐", "Fruits"), ("Sweet orange (Mosambi)", "బత్తాయి", "🍊", "Fruits"), ("Lemon", "నిమ్మ", "🍋", "Fruits"),
+    ("Pomegranate", "దానిమ్మ", "🍎", "Fruits"), ("Grapes", "ద్రాక్ష", "🍇", "Fruits"), ("Watermelon", "పుచ్చకాయ", "🍉", "Fruits"),
+    ("Muskmelon", "కర్బూజ", "🍈", "Fruits"), ("Coconut", "కొబ్బరి", "🥥", "Fruits"), ("Sapota", "సపోటా", "🟤", "Fruits"),
+    ("Custard apple", "సీతాఫలం", "🍏", "Fruits"), ("Cashew", "జీడిమామిడి", "🌰", "Fruits"),
+    # Others
+    ("Marigold (Flowers)", "బంతి", "🌼", "Flowers"), ("Rose (Flowers)", "గులాబీ", "🌹", "Flowers"),
+    ("Fodder grass", "పశుగ్రాసం", "🌿", "Fodder"),
+]
+ALL_CROPS = {name: te for name, te, _, _ in CROP_CATALOG}
+
+
+def crop_te(crop):
+    """Telugu name of any crop; a crop typed in by the farmer keeps its own name."""
+    return ALL_CROPS.get(crop, crop)
+
+
+def crop_icon(crop):
+    return next((icon for name, _, icon, _ in CROP_CATALOG if name == crop), "🌱")
+
 
 MARKETS = ["Warangal (Enumamula)", "Nizamabad", "Khammam", "Hyderabad (Bowenpally)", "Karimnagar", "Siddipet"]
 
@@ -391,3 +449,22 @@ QUERY_HISTORY = _query_history()
 
 def now_iso():
     return datetime.now().isoformat(timespec="seconds")
+
+
+def write_json(path, obj):
+    """Save to a temporary file first, then swap it in, so a crash or a second
+    process can never leave a half-written (empty) save file behind."""
+    tmp = path.with_name(f"{path.name}.{os.getpid()}.tmp")
+    tmp.write_text(json.dumps(obj, indent=1, ensure_ascii=False), encoding="utf-8")
+    os.replace(tmp, path)
+
+
+def read_json(path, default):
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except (FileNotFoundError, ValueError):
+        return default
+
+
+# Apply farmers' saved edits on top of the demo data whenever this module is used
+from . import profiles  # noqa: E402,F401

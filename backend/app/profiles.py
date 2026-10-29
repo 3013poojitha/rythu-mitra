@@ -16,6 +16,9 @@ from pathlib import Path
 from . import data
 
 PROFILES_FILE = Path(__file__).resolve().parents[1] / "farmer_profiles.json"
+# Farmers who signed up in the app without a department Farmer ID (not yet verified by the AEO)
+NEW_FARMERS_FILE = Path(__file__).resolve().parents[1] / "new_farmers.json"
+NEW_ID_START = 5001  # their Farmer IDs: TS5001, TS5002, ...
 
 SOILS = ["Black cotton", "Red sandy loam", "Alluvial", "Red loam", "Clay", "Sandy"]
 IRRIGATION = ["Borewell", "Canal", "Tank", "Rainfed", "Drip", "Sprinkler"]
@@ -169,7 +172,7 @@ def update(farmer_id, changes):
         saved = _read_file()
         saved[f["farmer_id"]] = {**clean, "updated_on": f["updated_on"]}
         data.write_json(PROFILES_FILE, saved)
-        _seen[0] = _mtime()
+        _seen[0] = _stamp()
     # Keep the login account's display name in step with the profile
     from . import auth, seasons
     auth.set_farmer_name(f["farmer_id"], f["name"])
@@ -184,7 +187,7 @@ def mark_new(farmer_id):
         saved = _read_file()
         saved[farmer_id] = {**saved.get(farmer_id, {}), "needs_details": True}
         data.write_json(PROFILES_FILE, saved)
-        _seen[0] = _mtime()
+        _seen[0] = _stamp()
         data.FARMER_INDEX[farmer_id]["needs_details"] = True
 
 
@@ -200,18 +203,70 @@ def _mtime():
         return None
 
 
-_seen = [None]  # modification time of the file when we last read it
+def _stamp():
+    """Modification times of both save files: if either changed, read them again."""
+    try:
+        new = NEW_FARMERS_FILE.stat().st_mtime
+    except FileNotFoundError:
+        new = None
+    return _mtime(), new
+
+
+_seen = [None]  # _stamp() when we last read the files
 
 
 def sync():
-    """Re-read the save file if it changed, e.g. an edit made in the other app
-    (React and Streamlit run as separate programs but share this file)."""
-    if _mtime() != _seen[0]:
+    """Re-read the save files if they changed, e.g. an edit or a sign-up made in the other app
+    (React and Streamlit run as separate programs but share these files)."""
+    if _stamp() != _seen[0]:
         _load()
 
 
+def _load_new_farmers():
+    """Add farmers who signed up without a Farmer ID to the farmer list (once each)."""
+    for rec in data.read_json(NEW_FARMERS_FILE, []):
+        if rec["farmer_id"] not in data.FARMER_INDEX:
+            f = dict(rec)
+            data.FARMERS.append(f)
+            data.FARMER_INDEX[f["farmer_id"]] = f
+
+
+MOBILE = re.compile(r"[6-9]\d{9}")
+
+
+def add_farmer(name, mobile, district):
+    """A new farmer with no department Farmer ID signs up. Returns their new Farmer ID.
+    The record is marked not verified; they fill in village, land and crops next."""
+    name = " ".join(str(name or "").split())
+    if not 2 <= len(name) <= 60:
+        raise ProfileError("Please enter your full name (2 to 60 letters).")
+    mobile = str(mobile or "").strip()
+    if not MOBILE.fullmatch(mobile):
+        raise ProfileError("Enter a valid 10-digit mobile number.")
+    if district not in data.DISTRICTS:
+        raise ProfileError("Please choose a district from the list.")
+    with _lock:
+        sync()
+        if any(f["mobile"] == mobile for f in data.FARMERS):
+            raise ProfileError("This mobile number is already in the records. Sign up with your Farmer ID, or log in.")
+        n = NEW_ID_START
+        while f"TS{n}" in data.FARMER_INDEX:
+            n += 1
+        rec = {"farmer_id": f"TS{n}", "name": name, "mobile": mobile, "district": district,
+               "district_te": data.DISTRICTS[district], "village": "", "age": "", "gender": "",
+               "total_acres": 0, "plots": [], "crops": [], "bank": "—", "applications": [],
+               "verified": False, "registered_on": data.now_iso()}
+        saved = data.read_json(NEW_FARMERS_FILE, [])
+        saved.append(rec)
+        data.write_json(NEW_FARMERS_FILE, saved)
+        _load_new_farmers()
+        _seen[0] = _stamp()
+    return rec["farmer_id"]
+
+
 def _load():
-    _seen[0] = _mtime()
+    _seen[0] = _stamp()
+    _load_new_farmers()
     for fid, saved in _read_file().items():
         f = data.FARMER_INDEX.get(fid)
         if f:

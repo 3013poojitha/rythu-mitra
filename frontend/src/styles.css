@@ -279,6 +279,10 @@ button.full { width: 100%; padding: 10px; margin-top: 14px; }
 .chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 12px; }
 .chips button { padding: 4px 10px; font-size: 12px; border-radius: 99px; }
 .chips button.on { background: var(--brand); color: #fff; border-color: var(--brand); }
+.reg-choice { margin: 4px 0 10px; }
+.unverified { display: inline-block; margin-left: 8px; background: #fff5e0; color: #8a5a00; border-radius: 99px; padding: 1px 10px; font-size: 12px; font-weight: 600; }
+.reg-choice button.on { background: var(--brand); color: #fff; }
+
 /* 🔒 Consent screen (once, before the app) */
 .consent-page { max-width: 640px; margin: 0 auto; }
 .consent { display: flex; flex-direction: column; gap: 8px; font-size: 15px; line-height: 1.5; }

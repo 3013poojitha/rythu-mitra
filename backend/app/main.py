@@ -23,7 +23,7 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], all
 pool = ThreadPoolExecutor(max_workers=8)
 
 # API paths that work without logging in
-PUBLIC_PATHS = {"/api/status", "/api/auth/login", "/api/auth/register", "/api/auth/forgot-password",
+PUBLIC_PATHS = {"/api/status", "/api/auth/login", "/api/auth/register", "/api/auth/register-new", "/api/auth/districts", "/api/auth/forgot-password",
                 "/api/auth/reset-password", "/api/terms"}
 
 
@@ -148,6 +148,14 @@ class LoginIn(BaseModel):
     password: str
 
 
+class RegisterNewIn(BaseModel):
+    name: str
+    mobile: str
+    district: str
+    password: str
+    confirm: str
+
+
 class RegisterIn(BaseModel):
     farmer_id: str
     mobile: str
@@ -215,6 +223,18 @@ def logout(request: Request):
 @app.get("/api/auth/me")
 def me(request: Request):
     return auth.public(_user(request))
+
+
+@app.post("/api/auth/register-new")
+def register_new(body: RegisterNewIn):
+    """A new farmer without a department Farmer ID: the app gives them one."""
+    return _auth_call(auth.register_new, body.name, body.mobile, body.district, body.password, body.confirm)
+
+
+@app.get("/api/auth/districts")
+def districts():
+    """Districts for the new-farmer sign-up form (before login)."""
+    return [{"name": d, "te": te} for d, te in data.DISTRICTS.items()]
 
 
 @app.post("/api/auth/register")

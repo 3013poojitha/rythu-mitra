@@ -178,6 +178,7 @@ button[data-variant="segmented_control"][aria-checked="true"] p, button[data-var
 .farm-name { color: #fff; font-size: 19px; font-weight: 700; line-height: 1.3; }
 .farm-sub { color: #d4ecdb; font-size: 13px; }
 .farm-sub .te { color: #ffd77a; }
+.unverified { display: inline-block; margin-left: 8px; background: #fff5e0; color: #8a5a00; border-radius: 99px; padding: 1px 10px; font-size: 12px; font-weight: 600; }
 .farm-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
 .kpi { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 14px; box-shadow: var(--shadow); }
 .kpi small { display: block; color: var(--muted); font-size: 12px; }
@@ -607,10 +608,10 @@ PW_HELP = ("8+ characters with letters and numbers", "కనీసం 8 అక�
 
 def login_form():
     st.markdown("### " + T("Log in", "లాగిన్"))
-    H('<p class="muted">' + T("Farmers use their Farmer ID (e.g. TS1002). Staff use their department user ID.",
-                              "రైతులు తమ రైతు ID (ఉదా. TS1002) వాడండి. సిబ్బంది తమ శాఖ యూజర్ ID వాడండి.") + "</p>")
+    H('<p class="muted">' + T("Farmers use their Farmer ID (e.g. TS1002) or mobile number. Staff use their department user ID.",
+                              "రైతులు తమ రైతు ID (ఉదా. TS1002) లేదా మొబైల్ నంబర్ వాడండి. సిబ్బంది తమ శాఖ యూజర్ ID వాడండి.") + "</p>")
     with st.form("login", border=False):
-        uid = st.text_input(T("User ID", "యూజర్ ID"))
+        uid = st.text_input(T("User ID or mobile number", "యూజర్ ID లేదా మొబైల్ నంబర్"))
         pwd = st.text_input(T("Password", "పాస్‌వర్డ్"), type="password")
         if st.form_submit_button(T("Log in", "లాగిన్"), type="primary", width="stretch"):
             try:
@@ -622,12 +623,16 @@ def login_form():
     # One under the other: the Telugu words are too long to sit side by side on a phone
     st.button(T("Forgot password?", "పాస్‌వర్డ్ మర్చిపోయారా?"), on_click=go, args=("forgot",), type="tertiary")
     st.button(T("New farmer? Create account", "కొత్త రైతా? ఖాతా తెరవండి"), on_click=go, args=("register",), type="tertiary")
-    H('<p class="muted">' + T("Demo user IDs and passwords are in the README (Demo accounts table).",
-                              "డెమో యూజర్ IDలు, పాస్‌వర్డ్‌లు README ఫైల్‌లో ఉన్నాయి.") + "</p>")
 
 
 def register_form():
     st.markdown("### " + T("Farmer sign-up", "రైతు ఖాతా తెరవండి"))
+    choice = st.segmented_control(
+        T("Sign-up type", "నమోదు రకం"), ["id", "new"], default="id", key="reg_type", label_visibility="collapsed",
+        format_func=lambda c: T("I have a Farmer ID", "నాకు రైతు ID ఉంది") if c == "id" else T("New farmer (no Farmer ID)", "కొత్త రైతు (ID లేదు)"))
+    if choice == "new":
+        register_new_form()
+        return
     H('<p class="muted">' + T("Use your Farmer ID and the mobile number on your department record.",
                               "మీ రైతు ID, శాఖ రికార్డులో ఉన్న మొబైల్ నంబర్ వాడండి.") + "</p>")
     with st.form("signup", border=False):
@@ -645,6 +650,32 @@ def register_form():
             except auth.AuthError as e:
                 st.error(err(e))
     st.button(T("← Back to log in", "← లాగిన్‌కు వెనక్కి"), on_click=go, args=("login",), type="tertiary")
+
+
+def register_new_form():
+    """A new farmer with no department Farmer ID: name, mobile, district and password. The app gives
+    them a Farmer ID (not yet verified by the AEO); next they agree to consent and fill in their details."""
+    H('<p class="muted">' + T("No Farmer ID yet? Sign up here. You get a new Farmer ID; your AEO verifies your details later.",
+                              "రైతు ID ఇంకా లేదా? ఇక్కడ నమోదు చేసుకోండి. మీకు కొత్త రైతు ID వస్తుంది; మీ వివరాలను తర్వాత మీ AEO పరిశీలిస్తారు.") + "</p>")
+    with st.form("signup_new", border=False):
+        name = st.text_input(T("Full name", "పూర్తి పేరు"))
+        mob = st.text_input(T("Mobile number", "మొబైల్ నంబర్"), max_chars=10, placeholder=T("10-digit mobile", "10 అంకెల మొబైల్ నంబర్"))
+        district = st.selectbox(T("District", "జిల్లా"), list(data.DISTRICTS), index=None,
+                                format_func=lambda d: data.DISTRICTS[d] if is_te() else d, placeholder=T("Choose…", "ఎంచుకోండి…"))
+        p1 = st.text_input(T("New password", "కొత్త పాస్‌వర్డ్"), type="password", help=T(*PW_HELP))
+        p2 = st.text_input(T("Confirm password", "పాస్‌వర్డ్ మళ్లీ రాయండి"), type="password")
+        if st.form_submit_button(T("Create account", "ఖాతా తెరవండి"), type="primary", width="stretch"):
+            try:
+                u = auth.register_new(name, mob, district, p1, p2)
+                ss.notice = {"en": f"Account created for {u['name']}. Your new Farmer ID is {u['user_id']}. "
+                                   "Log in with it or with your mobile number.",
+                             "te": f"{u['name']} గారి ఖాతా తెరవబడింది. మీ కొత్త రైతు ID {u['user_id']}. "
+                                   "దీనితో లేదా మీ మొబైల్ నంబర్‌తో లాగిన్ చేయండి."}
+                go("login")
+                st.rerun()
+            except auth.AuthError as e:
+                st.error(err(e))
+    st.button(T("← Back to log in", "← లాగిన్‌కు వెనక్కి"), on_click=go, args=("login",), type="tertiary", key="back_new")
 
 
 def forgot_form():
@@ -1609,10 +1640,13 @@ def farm_profile(f, farmer_view, home=False, back=False):
         left, right = st.columns([2.6, 1.6], vertical_alignment="center")
         greeting = (T("Namaskaram", "నమస్కారం") + f", {e(f['name'].split()[0])} 🙏") if farmer_view else e(f["name"])
         place = f["district_te"] if is_te() else f["district"]
+        # Signed up without a department Farmer ID: the AEO still has to check the details
+        unverified = ('<span class="unverified">⏳ ' + T("Not yet verified by AEO", "AEO పరిశీలన పెండింగ్‌లో ఉంది") + "</span>"
+                      if f.get("verified") is False else "")
         left.markdown(f"""<div class="farm-who"><div class="farm-avatar">{e(f["name"][0])}</div><div>
 <div class="farm-name">{greeting}</div>
 <div class="farm-sub">{f["farmer_id"]} · 📍 {e(f["village"])}, {place}
- · {T("Age", "వయస్సు")} {f["age"]} · {V(f["gender"])}</div></div></div>""", unsafe_allow_html=True)
+ · {T("Age", "వయస్సు")} {f["age"]} · {V(f["gender"])}{unverified}</div></div></div>""", unsafe_allow_html=True)
         # Edit and Back side by side on the right, away from the name
         with right, st.container(horizontal=True, horizontal_alignment="right", gap="small", key="hero_btns"):
             if not home and st.button("✏️ " + T("Edit details", "వివరాలు మార్చండి")):

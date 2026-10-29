@@ -160,9 +160,18 @@ def mask(mobile):
     return f"{mobile[:2]}xxxxxx{mobile[-2:]}"
 
 
-def _get(user_id):
+def _find(user_id):
+    """A user by user ID, or a farmer by their 10-digit mobile number (easier to remember)."""
     sync_users()
-    u = USERS.get((user_id or "").strip().lower())
+    key = (user_id or "").strip().lower()
+    u = USERS.get(key)
+    if not u and re.fullmatch(r"\d{10}", key):
+        u = next((x for x in USERS.values() if x["role"] == "farmer" and x["mobile"] == key), None)
+    return u
+
+
+def _get(user_id):
+    u = _find(user_id)
     if not u:
         raise AuthError("User ID not found.", 404)
     return u
@@ -172,8 +181,7 @@ def _get(user_id):
 
 def login(user_id, password):
     with _lock:
-        sync_users()
-        u = USERS.get((user_id or "").strip().lower())
+        u = _find(user_id)
         if not u:
             raise AuthError("Incorrect user ID or password.", 401)
         if u["locked_until"] > time.time():
@@ -230,6 +238,25 @@ def register(farmer_id, mobile, password, confirm):
     with _lock:
         user = _create({"user_id": farmer_id, "role": "farmer", "farmer_id": farmer_id, "password": password})
     profiles.mark_new(farmer_id)
+    return public(user)
+
+
+def register_new(name, mobile, district, password, confirm):
+    """A farmer with no department Farmer ID signs up: the app gives them a new Farmer ID
+    (marked not verified by the AEO). They then agree to consent and fill in their details."""
+    if password != confirm:
+        raise AuthError("Passwords do not match.")
+    check_strength(password)
+    sync_users()
+    if any(u["mobile"] == (mobile or "").strip() for u in USERS.values()):
+        raise AuthError("This mobile number already has an account. Use Login or Forgot password.", 409)
+    try:
+        fid = profiles.add_farmer(name, mobile, district)
+    except profiles.ProfileError as e:
+        raise AuthError(str(e))
+    with _lock:
+        user = _create({"user_id": fid, "role": "farmer", "farmer_id": fid, "password": password})
+    profiles.mark_new(fid)
     return public(user)
 
 

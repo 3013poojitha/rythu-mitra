@@ -16,3 +16,4 @@ backend/crop_photos/
 backend/today_seen.json
 backend/applications.json
 backend/consent.json
+backend/new_farmers.json

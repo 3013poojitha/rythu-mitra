@@ -92,7 +92,11 @@ The shared Telugu words are in `backend/app/terms.py` (served to the React app a
 ## Login & account features
 
 - **Log in** with user ID and password; **Remember me** keeps you signed in after closing the browser.
-- **Farmer sign-up**: a farmer creates an account with their Farmer ID plus the mobile number on the department record, so someone else can't claim their ID.
+- **Farmer sign-up**, two ways:
+  - **I have a Farmer ID**: the Farmer ID plus the mobile number on the department record, so someone else can't claim their ID.
+  - **New farmer (no Farmer ID)**: name, mobile number, district and password. The app gives a new Farmer ID (TS5001, TS5002, ...) marked "Not yet verified by AEO". Saved in `backend/new_farmers.json`.
+  - Either way the farmer then agrees to the consent screen once and fills in My details before using the app.
+- **Farmers can log in with their mobile number** instead of the Farmer ID.
 - **Forgot password → Reset password**: enter your user ID and a 6-digit code is "sent" to the registered mobile. There is no real SMS in this prototype, so the code is shown on screen and printed in the server window. The code expires in 10 minutes and allows 5 tries.
 - **Change password** from the user menu (top right) opens its own page, with **🏠 Back to main page**. **Log out** asks "Log out?" first, with Cancel.
 - **Security basics**: passwords are stored only as salted hashes (PBKDF2). The account locks for 5 minutes after 5 wrong passwords. Passwords need 8+ characters with letters and numbers. Sessions expire after 8 hours and survive a server restart, and a password reset signs out all devices.
@@ -193,7 +197,8 @@ start.bat            One-click start on Windows
 | Method | Path | Purpose |
 |---|---|---|
 | POST | `/api/auth/login`, `/api/auth/logout` | Log in (returns a token) / log out |
-| POST | `/api/auth/register` | Farmer sign-up |
+| POST | `/api/auth/register` | Farmer sign-up with a Farmer ID |
+| POST | `/api/auth/register-new` | New farmer sign-up without a Farmer ID |
 | POST | `/api/auth/forgot-password`, `/api/auth/reset-password` | Password reset with a one-time code |
 | POST | `/api/auth/change-password` · GET `/api/auth/me` | Change password / current user |
 | GET | `/api/diseases?acres=2` | Disease library with spray quantities |

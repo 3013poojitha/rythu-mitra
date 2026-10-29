@@ -197,6 +197,8 @@ export default function MyFarm({ farmer, isFarmer, onSaved, view = "full", onBac
               <p className="muted">
                 {farmer.farmer_id} · 📍 {farmer.village}, {te ? <span className="te">{farmer.district_te}</span> : farmer.district}
                 {" "}· {t("Age")} {farmer.age} · {tv(farmer.gender)}
+                {/* Signed up without a department Farmer ID: the AEO still has to check the details */}
+                {farmer.verified === false && <span className="unverified">⏳ {t("Not yet verified by AEO", "AEO పరిశీలన పెండింగ్‌లో ఉంది")}</span>}
               </p>
             </div>
           </div>

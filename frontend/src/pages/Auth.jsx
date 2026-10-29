@@ -43,7 +43,7 @@ export default function Auth({ onLogin, startNotice = null }) {
 }
 
 function Login({ onLogin, go }) {
-  const { te, t, terr } = useLang();
+  const { t, terr } = useLang();
   const [userId, setUserId] = useState("");
   const [password, setPassword] = useState("");
   const [remember, setRemember] = useState(true);
@@ -69,9 +69,9 @@ function Login({ onLogin, go }) {
   return (
     <form onSubmit={submit}>
       <h2>{t("Log in")}</h2>
-      <p className="muted">{t("Farmers use their Farmer ID (e.g. TS1002). Staff use their department user ID.",
-        "రైతులు తమ రైతు ID (ఉదా. TS1002) వాడండి. సిబ్బంది తమ శాఖ యూజర్ ID వాడండి.")}</p>
-      <label>{t("User ID")}</label>
+      <p className="muted">{t("Farmers use their Farmer ID (e.g. TS1002) or mobile number. Staff use their department user ID.",
+        "రైతులు తమ రైతు ID (ఉదా. TS1002) లేదా మొబైల్ నంబర్ వాడండి. సిబ్బంది తమ శాఖ యూజర్ ID వాడండి.")}</p>
+      <label>{t("User ID or mobile number", "యూజర్ ID లేదా మొబైల్ నంబర్")}</label>
       <input value={userId} onChange={(e) => setUserId(e.target.value)} autoComplete="username" autoFocus required />
       <label>{t("Password")}</label>
       <PasswordInput value={password} onChange={setPassword} show={show} setShow={setShow} autoComplete="current-password" />
@@ -82,19 +82,79 @@ function Login({ onLogin, go }) {
       {error && <div className="error">{terr(error)}</div>}
       <button className="primary full" disabled={busy}>{busy ? t("Logging in…", "లాగిన్ అవుతోంది…") : t("Log in")}</button>
       <p className="center muted">{t("New farmer?", "కొత్త రైతా?")} <a onClick={() => go("register")}>{t("Create an account", "ఖాతా తెరవండి")}</a></p>
-      <details className="demo-accounts">
-        <summary>{t("Demo accounts", "డెమో ఖాతాలు")}</summary>
-        {te ? (
-          <p>ప్రతి పాత్ర (Admin, Contributor, Reviewer, BV Central, Farmer) యూజర్ ID, పాస్‌వర్డ్ కోసం README.md లోని <b>Demo accounts</b> పట్టిక చూడండి.</p>
-        ) : (
-          <p>See the <b>Demo accounts</b> table in README.md for the user IDs and passwords of each role (Admin, Contributor, Reviewer, BV Central, Farmer).</p>
-        )}
-      </details>
     </form>
   );
 }
 
 function Register({ go }) {
+  const { t, terr } = useLang();
+  const [hasId, setHasId] = useState(true); // with a department Farmer ID, or a brand-new farmer
+  if (!hasId) return <RegisterNew go={go} back={() => setHasId(true)} />;
+  return <RegisterWithId go={go} newFarmer={() => setHasId(false)} />;
+}
+
+// A new farmer with no department Farmer ID: name, mobile, district and password. The app gives
+// them a Farmer ID (not yet verified by the AEO); next they agree to consent and fill in their details.
+function RegisterNew({ go, back }) {
+  const { te, t, terr } = useLang();
+  const [f, setF] = useState({ name: "", mobile: "", district: "", password: "", confirm: "" });
+  const [districts, setDistricts] = useState([]);
+  const [show, setShow] = useState(false);
+  const [error, setError] = useState("");
+  const set = (k) => (v) => setF({ ...f, [k]: typeof v === "string" ? v : v.target.value });
+  useEffect(() => { api.districts().then(setDistricts).catch(() => {}); }, []);
+
+  async function submit(e) {
+    e.preventDefault();
+    setError("");
+    try {
+      const u = await api.registerNew(f);
+      go("login", [`Account created for ${u.name}. Your new Farmer ID is ${u.user_id}. Log in with it or with your mobile number.`,
+        `${u.name} గారి ఖాతా తెరవబడింది. మీ కొత్త రైతు ID ${u.user_id}. దీనితో లేదా మీ మొబైల్ నంబర్‌తో లాగిన్ చేయండి.`]);
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  return (
+    <form onSubmit={submit}>
+      <h2>{t("New farmer sign-up", "కొత్త రైతు నమోదు")}</h2>
+      <RegisterChoice hasId={false} onChange={back} />
+      <p className="muted">{t("No Farmer ID yet? Sign up here. You get a new Farmer ID; your AEO verifies your details later.",
+        "రైతు ID ఇంకా లేదా? ఇక్కడ నమోదు చేసుకోండి. మీకు కొత్త రైతు ID వస్తుంది; మీ వివరాలను తర్వాత మీ AEO పరిశీలిస్తారు.")}</p>
+      <label>{t("Full name", "పూర్తి పేరు")}</label>
+      <input value={f.name} onChange={set("name")} autoComplete="name" required />
+      <label>{t("Mobile number", "మొబైల్ నంబర్")}</label>
+      <input value={f.mobile} onChange={set("mobile")} inputMode="numeric" maxLength={10} placeholder={t("10-digit mobile", "10 అంకెల మొబైల్ నంబర్")} required />
+      <label>{t("District", "జిల్లా")}</label>
+      <select value={f.district} onChange={set("district")} required>
+        <option value="" disabled>{t("Choose…", "ఎంచుకోండి…")}</option>
+        {districts.map((d) => <option key={d.name} value={d.name}>{te ? d.te : d.name}</option>)}
+      </select>
+      <label>{t("Create password", "పాస్‌వర్డ్ పెట్టుకోండి")}</label>
+      <PasswordInput value={f.password} onChange={set("password")} show={show} setShow={setShow} autoComplete="new-password" />
+      <Strength password={f.password} />
+      <label>{t("Confirm password", "పాస్‌వర్డ్ మళ్లీ రాయండి")}</label>
+      <PasswordInput value={f.confirm} onChange={set("confirm")} show={show} setShow={setShow} autoComplete="new-password" />
+      {error && <div className="error">{terr(error)}</div>}
+      <button className="primary full">{t("Create account", "ఖాతా తెరవండి")}</button>
+      <p className="center muted">{t("Already registered?", "ఇప్పటికే ఖాతా ఉందా?")} <a onClick={() => go("login")}>{t("Log in")}</a></p>
+    </form>
+  );
+}
+
+// "I have a Farmer ID" | "New farmer (no Farmer ID)"
+function RegisterChoice({ hasId, onChange }) {
+  const { t } = useLang();
+  return (
+    <div className="seg reg-choice">
+      <button type="button" className={hasId ? "on" : ""} onClick={() => !hasId && onChange()}>{t("I have a Farmer ID", "నాకు రైతు ID ఉంది")}</button>
+      <button type="button" className={hasId ? "" : "on"} onClick={() => hasId && onChange()}>{t("New farmer (no Farmer ID)", "కొత్త రైతు (ID లేదు)")}</button>
+    </div>
+  );
+}
+
+function RegisterWithId({ go, newFarmer }) {
   const { t, terr } = useLang();
   const [f, setF] = useState({ farmer_id: "", mobile: "", password: "", confirm: "" });
   const [show, setShow] = useState(false);
@@ -116,6 +176,7 @@ function Register({ go }) {
   return (
     <form onSubmit={submit}>
       <h2>{t("Farmer sign-up", "రైతు నమోదు")}</h2>
+      <RegisterChoice hasId onChange={newFarmer} />
       <p className="muted">{t("Use the Farmer ID and mobile number registered with your Agriculture Extension Officer.",
         "మీ వ్యవసాయ విస్తరణ అధికారి (AEO) వద్ద నమోదైన రైతు ID, మొబైల్ నంబర్ వాడండి.")}</p>
       <label>{t("Farmer ID")}</label>

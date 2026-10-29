@@ -131,6 +131,11 @@ UI = {
 # Error messages the backend sends, as (regular expression, Telugu). {1}, {2} are the
 # numbers/words captured by the brackets in the pattern. Use te_error(message).
 ERRORS = [
+    (r"Enter a valid 10-digit mobile number\.", "సరైన 10 అంకెల మొబైల్ నంబర్ రాయండి."),
+    (r"This mobile number is already in the records\. Sign up with your Farmer ID, or log in\.",
+     "ఈ మొబైల్ నంబర్ ఇప్పటికే రికార్డుల్లో ఉంది. మీ రైతు ID తో ఖాతా తెరవండి, లేదా లాగిన్ చేయండి."),
+    (r"This mobile number already has an account\. Use Login or Forgot password\.",
+     "ఈ మొబైల్ నంబర్‌తో ఇప్పటికే ఖాతా ఉంది. లాగిన్ చేయండి లేదా పాస్‌వర్డ్ మర్చిపోయారా వాడండి."),
     (r"You have already applied for this scheme\.", "ఈ పథకానికి మీరు ఇప్పటికే దరఖాస్తు చేశారు."),
     (r"Please choose a scheme\.", "దయచేసి ఒక పథకాన్ని ఎంచుకోండి."),
     (r"Incorrect user ID or password\. (\d+) attempt\(s\) left\.", "యూజర్ ID లేదా పాస్‌వర్డ్ తప్పు. ఇంకా {1} ప్రయత్నాలు మిగిలాయి."),

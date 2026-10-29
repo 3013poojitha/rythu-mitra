@@ -14,6 +14,7 @@ import hashlib
 import json
 import os
 import random
+import re
 import time
 
 from . import data, diseases, terms
@@ -211,9 +212,19 @@ def _call_gemini(system, user_text, images):
     return text, usage.get("promptTokenCount", 0), usage.get("candidatesTokenCount", 0)
 
 
+def _tidy(text):
+    """List lines from the AI ("* item", "- item") become "• item", as in the demo answers,
+    so the chat never shows stray stars."""
+    return re.sub(r"^[ 	]*[*-][ 	]+", "• ", text, flags=re.M)
+
+
 def _call_live(provider, system, user_text, images=None):
     """images: [(bytes, mime)] - one or more pictures, sent before the text."""
-    images = images or []
+    text, tin, tout = _call_model(provider, system, user_text, images or [])
+    return _tidy(text), tin, tout
+
+
+def _call_model(provider, system, user_text, images):
     if provider == "gemini":
         return _call_gemini(system, user_text, images)
     if provider == "claude":

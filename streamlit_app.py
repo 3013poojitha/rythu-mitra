@@ -36,8 +36,15 @@ try:
 except Exception:  # no secrets file - fine, stays in mock mode
     pass
 
+# Streamlit reruns this file after a code update but keeps the old backend modules in memory, so the
+# new file could call something the old modules do not have. When the backend files change, load them fresh.
+_code_stamp = max(p.stat().st_mtime for p in (ROOT / "backend" / "app").glob("*.py"))
+if "app" in sys.modules and getattr(sys.modules["app"], "_code_stamp", None) != _code_stamp:
+    for _name in [m for m in sys.modules if m == "app" or m.startswith("app.")]:
+        del sys.modules[_name]
 from app import ai, applications, assistant, auth, consent, data, diseases, history, media, pipeline, profiles, seasons, terms, today  # noqa: E402
 from app import report as farm_report  # noqa: E402  (this file has its own report() for Crop Doctor)
+sys.modules["app"]._code_stamp = _code_stamp
 
 st.set_page_config(page_title="Rythu Mitra - Telangana x Bharat Vistaar", page_icon="🌾", layout="wide")
 

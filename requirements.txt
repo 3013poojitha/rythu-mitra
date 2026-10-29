@@ -4,6 +4,7 @@ pandas>=2.0
 python-dotenv>=1.0
 pypdf>=4.0
 pillow>=10.0  # shrinks crop photos saved in History
+opencv-python-headless>=4.9  # takes still frames from crop videos
 # Only needed for live mode (when you add API keys):
 anthropic>=0.70
 openai>=1.50

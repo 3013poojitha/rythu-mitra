@@ -36,7 +36,7 @@ try:
 except Exception:  # no secrets file - fine, stays in mock mode
     pass
 
-from app import ai, assistant, auth, data, diseases, history, pipeline, profiles, seasons, terms  # noqa: E402
+from app import ai, applications, assistant, auth, data, diseases, history, media, pipeline, profiles, seasons, terms, today  # noqa: E402
 from app import report as farm_report  # noqa: E402  (this file has its own report() for Crop Doctor)
 
 st.set_page_config(page_title="Rythu Mitra - Telangana x Bharat Vistaar", page_icon="🌾", layout="wide")
@@ -88,6 +88,8 @@ header[data-testid="stHeader"], [data-testid="stSidebar"], [data-testid="stSideb
 .pill.soft { background: var(--brand-soft); color: var(--brand-dark); }
 .st-key-topbar [data-testid="stPopover"] button { background: rgba(255,255,255,.12); border-color: rgba(255,255,255,.25); color: #fff; }
 .st-key-topbar [data-testid="stPopover"] button p { color: #fff; font-weight: 600; }
+.st-key-today_btn button, .st-key-setup_logout button { background: rgba(255,255,255,.12); border-color: rgba(255,255,255,.25); color: #fff; }
+.st-key-today_btn button p, .st-key-setup_logout button p { color: #fff; font-weight: 600; }
 
 /* Tab bar */
 .st-key-nav { background: #fff; border-bottom: 1px solid var(--line); padding: 0 24px; margin-top: -1rem; }
@@ -166,12 +168,14 @@ button[data-variant="segmented_control"][aria-checked="true"] p, button[data-var
 .st-key-panel_gpt { border-top: 4px solid var(--gpt); }
 
 /* My Details (farmer profile, land & crops) */
-.st-key-farmhero { background: linear-gradient(135deg, #145c2c 0%, #1f7a3e 100%); border-radius: 12px; padding: 18px 20px; box-shadow: var(--shadow); }
+.st-key-farmhero { background: linear-gradient(135deg, #145c2c 0%, #1f7a3e 100%); border-radius: 12px; padding: 12px 18px; box-shadow: var(--shadow); }
+/* the greeting sits in the middle of the green card (Streamlit text blocks pull the bottom edge up) */
+.st-key-farmhero [data-testid="stMarkdown"], .st-key-farmhero [data-testid="stMarkdownContainer"] { margin: 0 !important; }
 .st-key-farmhero button { background: #fff !important; color: var(--brand-dark) !important; border-color: #fff !important; }
 .st-key-farmhero button p { color: var(--brand-dark) !important; font-weight: 600; }
-.farm-who { display: flex; gap: 14px; align-items: center; }
-.farm-avatar { width: 52px; height: 52px; border-radius: 50%; background: #ffd77a; color: #145c2c; display: grid; place-items: center; font-size: 24px; font-weight: 700; flex: none; }
-.farm-name { color: #fff; font-size: 22px; font-weight: 700; }
+.farm-who { display: flex; gap: 12px; align-items: center; }
+.farm-avatar { width: 44px; height: 44px; border-radius: 50%; background: #ffd77a; color: #145c2c; display: grid; place-items: center; font-size: 20px; font-weight: 700; flex: none; }
+.farm-name { color: #fff; font-size: 19px; font-weight: 700; line-height: 1.3; }
 .farm-sub { color: #d4ecdb; font-size: 13px; }
 .farm-sub .te { color: #ffd77a; }
 .farm-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
@@ -200,7 +204,7 @@ button[data-variant="segmented_control"][aria-checked="true"] p, button[data-var
 .voice-status { font-weight: 600; color: var(--brand-dark); text-align: center; font-size: 14px; }
 @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(197,59,50,.45); } 70% { box-shadow: 0 0 0 16px rgba(197,59,50,0); } 100% { box-shadow: 0 0 0 0 rgba(197,59,50,0); } }
 .vm-audio { width: 230px; max-width: 100%; height: 36px; display: block; margin-bottom: 4px; }
-/* Chat: photo thumbnails, voice notes, 🎤 button in the chat box */
+/* Chat: photo thumbnails, voice notes, mic button in the chat box */
 .msg .thumb { max-width: 180px; border-radius: 10px; display: block; margin-bottom: 6px; }
 .voice-note { display: flex; align-items: center; gap: 8px; min-width: 200px; margin-bottom: 4px; }
 .voice-note .play { width: 30px; height: 30px; border-radius: 50%; background: #075e54; color: #fff; display: grid; place-items: center; font-size: 12px; flex: none; }
@@ -209,7 +213,7 @@ button[data-variant="segmented_control"][aria-checked="true"] p, button[data-var
 .voice-note small { color: var(--muted); font-size: 11px; }
 .msg .transcript { font-size: 12px; font-style: italic; opacity: .8; border-top: 1px dashed rgba(0,0,0,.15); padding-top: 4px; }
 [data-testid="stChatInput"] { position: relative; }
-.mic-btn { position: absolute; right: 52px; top: 50%; transform: translateY(-50%); width: 34px; height: 34px; border-radius: 50%; border: 0; background: var(--brand-soft); font-size: 16px; cursor: pointer; z-index: 5; }
+.mic-btn { position: absolute; right: 52px; top: 50%; transform: translateY(-50%); width: 34px; height: 34px; border-radius: 50%; border: 0; background: var(--brand-soft); color: var(--brand); display: flex; align-items: center; justify-content: center; padding: 0; cursor: pointer; z-index: 5; }
 .mic-btn.rec { background: #c53b32; color: #fff; }
 /* Crop Doctor: the photo box reaches down to the bottom of "Your field", the upload area fills it */
 [data-testid="stLayoutWrapper"]:has(> .st-key-panel_photo) { flex: 1 1 auto; display: flex; flex-direction: column; }
@@ -256,11 +260,40 @@ button[data-variant="segmented_control"][aria-checked="true"] p, button[data-var
 .st-key-svc_side .wicon { font-size: 20px; }
 .st-key-svc_side .rain { color: #1565c0; }
 .crop-dates { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; margin-top: 6px; font-size: 13px; }
+.st-key-setup_page { max-width: 1000px; margin: 0 auto; }
+.apply-info { background: #f5f7f4; border-radius: 10px; padding: 10px 12px; font-size: 13px; margin-bottom: 8px; }
+.apply-info p { margin: 0 0 6px; }
+.st-key-lib_crop_row { flex-wrap: wrap; }
+.st-key-lib_crop_row > div { width: auto !important; flex: 0 1 auto !important; }
+.st-key-lib_q input { border-radius: 99px; font-size: 14px; }
+.setup-head { text-align: center; }
+.setup-head p { max-width: 560px; margin: 6px auto; color: #5b6b5f; }
+/* Today's update pop-up */
+.today-head { text-align: center; color: #5b6b5f; margin-bottom: 10px; }
+.today-weather { display: flex; align-items: center; gap: 14px; background: var(--brand-soft); border-radius: 12px; padding: 12px 16px; margin-bottom: 10px; }
+.today-weather b { display: block; font-size: 17px; }
+.today-weather small { display: block; color: #5b6b5f; }
+.today-wicon { font-size: 2.6rem; line-height: 1; }
+.today-h { margin: 14px 0 8px; font-size: 16px; }
+.today-lines { display: flex; flex-direction: column; gap: 8px; }
+.today-line { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border-radius: 10px; font-size: 15px; line-height: 1.45; background: #f5f7f4; }
+.today-line.wait { background: #fff5e0; }
+.today-line.do { background: #e9f6ec; }
+.today-icon { font-size: 20px; line-height: 1.2; }
+.msg-media { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 6px; margin-bottom: 6px; max-width: 320px; }
+.msg-media .mm { position: relative; }
+.msg-media img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 8px; display: block; }
+.msg-media .mm span { position: absolute; left: 4px; bottom: 4px; background: rgba(0,0,0,.55); border-radius: 6px; padding: 0 4px; font-size: 13px; }
+.st-key-doc_thumbs { flex-wrap: wrap; }
 .mic-btn.talk { background: var(--brand); color: #fff; animation: pulse 1.4s infinite; }
 .st-key-quick_row { flex-wrap: wrap; }
-.st-key-quick_row button { border-radius: 99px; min-height: 0; padding: 4px 12px; background: #fafcf9; }
+.st-key-quick_row { margin: -4px 0 10px; }
+.st-key-quick_row button { border-radius: 99px; min-height: 0; padding: 4px 12px; background: #fff; border-color: var(--brand); color: var(--brand); }
 .st-key-quick_row button p { font-size: 13px; }
 .st-key-farmer_chat { scroll-margin-top: 140px; }
+/* Home chat fits the screen: messages scroll inside, the typing box and mic stay in view */
+.st-key-farmer_chat div:has(> .st-key-msgs) { flex: 0 0 auto !important; height: max(300px, calc(100vh - 410px)) !important; }
+.st-key-farmer_chat .st-key-msgs { height: 100% !important; }
 /* Remedy follow-up inside the chat */
 .msg.bot.fu { border-left: 4px solid var(--accent); background: #fffdf6; }
 [class*="st-key-bellr_"] { flex-wrap: wrap; }
@@ -644,14 +677,14 @@ def forgot_form():
 # Top bar and tabs (same as the React header)
 # ---------------------------------------------------------------------------
 
-TABS = [("Farmer Chat", None), ("Crop Doctor", None), ("Farmer Services", "🏠 My Details"),
+TABS = [("Farmer Chat", None), ("Crop Doctor", None), ("Farmer Services", "🏠 Home"),
         ("Claude vs ChatGPT", None), ("Content Pipeline", None), ("PMU Dashboard", None)]
 # History and How the app works open from the user menu (top right), not the tab bar
-MENU_PAGES = {"history": "History", "about": "How the app works", "password": "Change password"}
+MENU_PAGES = {"details": "My details", "history": "History", "about": "How the app works", "password": "Change password"}
 STAFF_TABS = {"Claude vs ChatGPT", "Content Pipeline", "PMU Dashboard"}
 FARMER_HIDDEN = {"Farmer Chat"}  # farmers chat right under their details on My Details
 TAB_TE = {"Farmer Chat": "రైతు చాట్", "Crop Doctor": "పంట వైద్యుడు", "Farmer Services": "రైతు సేవలు",
-          "🏠 My Details": "🏠 నా వివరాలు"}
+          "🏠 Home": "🏠 ముఖ్య పేజీ"}
 
 
 def page_js(code, wait_for=None):
@@ -741,6 +774,15 @@ def header(user):
         page_js("if (document.querySelector('[data-testid=stPopoverBody]')) "
                 "[...document.querySelectorAll('.st-key-topright [data-testid=stPopover] button')].pop()?.click();")
         confirm_logout()
+    elif user["role"] == "farmer":
+        # Today's update opens by itself after the first login of the day (and from the 📅 button)
+        if not ss.get("today_checked"):
+            ss.today_checked = True
+            if not today.seen_today(user["farmer_id"]):
+                ss.show_today = True
+        if ss.pop("show_today", False):
+            today.mark_seen(user["farmer_id"])
+            today_update(user)
     status = ai.status()
     head = st.container(key="sticky_head")
     with head, st.container(key="topbar"):
@@ -758,10 +800,17 @@ def header(user):
             # Mock / Live AI is shown in the yellow line under the tabs, not here
             lang_switch("lang_top")
             if user["role"] == "farmer":
+                st.button("📅 " + T("Today", "ఈరోజు"), key="today_btn", help=T("Today's update", "ఈరోజు సమాచారం"),
+                          on_click=lambda: ss.update(show_today=True))
                 bell(user)
             with st.popover(f"👤 {user['name']}", width="content"):
                 st.markdown(f"**{user['user_id']}**  \n{V(auth.ROLES[user['role']])} · {T('Mobile', 'మొబైల్')} "
                             f"{auth.mask(user['mobile'])}")
+                if user["role"] == "farmer" and st.button("👤 " + T("My details", "నా వివరాలు"), width="stretch"):
+                    ss.view = "details"  # details, land and crops, with Edit
+                    ss.pop("editing", None)
+                    ss.close_menu = True
+                    st.rerun()
                 if st.button("🔑 " + T("Change password", "పాస్‌వర్డ్ మార్చండి"), width="stretch"):
                     ss.view = "password"  # opens as its own page, like My history
                     ss.close_menu = True
@@ -788,14 +837,27 @@ def header(user):
     if is_te():  # staff-only tabs stay English
         labels = {t: TAB_TE.get(lbl, lbl) for t, lbl in labels.items()}
     # Remember the open tab in the address bar (?page=...) so a refresh stays on it
-    slugs = {"Farmer Chat": "chat", "Crop Doctor": "doctor", "Farmer Services": "details", "Claude vs ChatGPT": "compare",
+    slugs = {"Farmer Chat": "chat", "Crop Doctor": "doctor", "Farmer Services": "home", "Claude vs ChatGPT": "compare",
              "Content Pipeline": "pipeline", "PMU Dashboard": "dashboard"}
     if "page" not in ss:
-        if st.query_params.get("page") in MENU_PAGES:
+        if st.query_params.get("page") in MENU_PAGES and (st.query_params["page"] != "details" or not staff):
             ss.view = st.query_params["page"]
         wanted = next((n for n, sl in slugs.items() if sl == st.query_params.get("page")), None)
         if wanted in names:
             ss.page = wanted
+    # A page opened from the user menu shows as its own highlighted tab, so the bar says where you are
+    menu_page = MENU_PAGES.get(ss.get("view")) if ss.get("view") != "details" or not staff else None
+    if menu_page:
+        names = names + [menu_page]
+        labels[menu_page] = {
+            "My details": "👤 " + T("My details", "నా వివరాలు"),
+            "History": "📜 " + (T("Crop history", "పంట చరిత్ర") if staff else T("My history", "నా చరిత్ర")),
+            "Change password": "🔑 " + T("Change password", "పాస్‌వర్డ్ మార్చండి"),
+            "How the app works": "ℹ️ " + T("How the app works", "యాప్ ఎలా పనిచేస్తుంది"),
+        }[menu_page]
+        ss.page = menu_page
+    elif ss.get("page") not in names:  # just left a menu page with its Back button
+        ss.page = names[0]
     with head, st.container(key="nav"):
         page = st.radio("Page", names, horizontal=True, label_visibility="collapsed", format_func=labels.get, key="page",
                         on_change=lambda: ss.pop("view", None))  # picking a tab leaves the History page
@@ -835,7 +897,11 @@ SOURCE_TE = {"Agmarknet mandi prices (dummy)": "Agmarknet మార్కెట�
              "Central scheme guidelines (dummy)": "కేంద్ర పథకం నియమాలు (నమూనా)",
              "State scheme guidelines (dummy)": "రాష్ట్ర పథకం నియమాలు (నమూనా)",
              "Scheme directory (dummy)": "పథకాల జాబితా (నమూనా)", "ICAR crop advisory (dummy)": "ICAR పంట సలహా (నమూనా)",
-             "Land & crop records (dummy)": "భూమి & పంట రికార్డులు (నమూనా)"}
+             "Land & crop records (dummy)": "భూమి & పంట రికార్డులు (నమూనా)",
+             "Scheme application API (dummy)": "పథకం దరఖాస్తు API (నమూనా)",
+             "DBT benefit status API (dummy)": "DBT డబ్బు జమ స్థితి API (నమూనా)",
+             "Grievance redressal API (dummy)": "ఫిర్యాదుల పరిష్కారం API (నమూనా)",
+             "Bhu Bharathi land records (dummy)": "భూ భారతి భూమి రికార్డులు (నమూనా)"}
 
 
 def source_label(s):
@@ -904,6 +970,40 @@ def both(make):
 
 def msg_text(m):
     return m["tx"][LANG] if "tx" in m else m["text"]
+
+
+def today_update(user):
+    """📅 Today's update: weather, watering, spraying and crop work due today, with Read aloud and Done."""
+    lang = ss.ui_lang
+    te = lang == "te"
+    u = today.build(user["farmer_id"])
+
+    def lines(items):
+        return "".join(f'<div class="today-line {x["tone"]}"><span class="today-icon">{x["icon"]}</span>'
+                       f'<span>{html.escape(x[lang])}</span></div>' for x in items)
+
+    def box():
+        w = u["weather"]
+        place = u["district_te"] if te else u["district"]
+        d = date.fromisoformat(u["date"])
+        top = f'<div class="today-head"><small>{day_label(d)} {d.year} · 📍 {place}</small></div>'
+        if w:
+            tom = w["tomorrow_te" if te else "tomorrow_en"]
+            top += (f'<div class="today-weather"><span class="today-wicon">{w["icon"]}</span><div>'
+                    f'<b>{html.escape(w[lang])}</b>{f"<small>{html.escape(tom)}</small>" if tom else ""}</div></div>')
+        H(top + f'<div class="today-lines">{lines(u["weather_lines"])}</div>'
+          + f'<h4 class="today-h">🌱 {T("Crop work", "పంట పనులు")}</h4>'
+          + f'<div class="today-lines">{lines(u["crop_lines"])}</div>')
+        st.caption(T("Crop reminders are demo timings. Check with your AEO before using fertilizer or medicine.",
+                     "పంట గుర్తుచేతలు డెమో సమయాలు మాత్రమే. ఎరువు లేదా మందు వాడే ముందు మీ AEO ని అడగండి."))
+        c1, c2 = st.columns(2)
+        if c1.button("🔊 " + T("Read aloud", "చదివి వినిపించండి"), width="stretch", key="today_speak"):
+            speak_aloud(today.speech(u, lang), lang)
+        if c2.button("✅ " + T("Done", "సరే"), type="primary", width="stretch", key="today_done"):
+            page_js("window.speechSynthesis && speechSynthesis.cancel()")
+            st.rerun()
+
+    st.dialog("🌾 " + T("Today on your farm", "ఈరోజు మీ పొలంలో"), width="medium")(box)()
 
 
 def bell(user):
@@ -997,18 +1097,10 @@ def page_chat(user, embedded=False):
     if embedded:
         provider, farmer_id = "claude", user["farmer_id"]
         main = st.container(key="farmer_chat")
-        with main:
-            st.markdown("### 💬 " + T("Ask Rythu Mitra", "రైతు మిత్రను అడగండి"))
-            st.caption(T("Type your question, or tap 🎤 and speak. You can also send a 📎 crop photo.",
-                         "ప్రశ్న టైప్ చేయండి, లేదా 🎤 నొక్కి మాట్లాడండి. 📎 పంట ఫోటో కూడా పంపవచ్చు."))
-            with st.container(horizontal=True, gap="small", key="quick_row"):
-                for q in QUICK[lang]:
-                    if st.button(q, key=f"q_{q}"):
-                        clicked = q
         if ss.pop("wa_scroll", False):
             page_js("document.querySelector('.st-key-farmer_chat')?.scrollIntoView({behavior: 'smooth', block: 'start'})",
                     wait_for=".st-key-farmer_chat")
-        chat_window(user, main, channel, lang, provider, farmer_id, clicked)
+        chat_window(user, main, channel, lang, provider, farmer_id, clicked, quick=True)
         return
     side, main = st.columns([1, 2.6], gap="medium")
     with side, st.container(key="panel_settings"):
@@ -1037,23 +1129,48 @@ def page_chat(user, embedded=False):
     chat_window(user, main, channel, lang, provider, farmer_id, clicked)
 
 
-def chat_window(user, main, channel, lang, provider, farmer_id, clicked):
+def follow_new_messages():
+    """Keep the chat scrolled to the newest message: whenever the messages grow (a question,
+    an answer, a photo), scroll the chat box to the bottom. Scrolling up to read stays put."""
+    page_js("""
+if (!window.rmFollowChat) {
+  window.rmFollowChat = setInterval(() => {
+    document.querySelectorAll('.st-key-msgs').forEach((b) => {
+      if (b.scrollHeight !== Number(b.dataset.seenHeight)) {
+        b.dataset.seenHeight = b.scrollHeight;
+        b.scrollTo({ top: b.scrollHeight, behavior: 'smooth' });
+      }
+    });
+  }, 300);
+}""")
+
+
+def chat_window(user, main, channel, lang, provider, farmer_id, clicked, quick=False):
+    """quick: the suggested questions sit inside the chat, under the welcome message."""
     with main, st.container(key="phone_wa" if channel == "WhatsApp" else "phone"):
         sub = (T("Telangana Agriculture Dept · Verified business", "తెలంగాణ వ్యవసాయ శాఖ · ధృవీకరించిన ఖాతా")
-               if channel == "WhatsApp" else T("Type or tap 🎤 to talk", "టైప్ చేయండి లేదా 🎤 నొక్కి మాట్లాడండి"))
-        H(f'<div class="phone-head"><div class="avatar">🌾</div><div><b>{T("Rythu Mitra", "రైతు మిత్ర")}</b>'
+               if channel == "WhatsApp" else T("Type or tap the mic to talk", "టైప్ చేయండి లేదా మైక్ నొక్కి మాట్లాడండి"))
+        # The farmer's chat on Home says "Ask Rythu Mitra" right in its green header
+        title = T("Ask Rythu Mitra", "రైతు మిత్రను అడగండి") if quick else T("Rythu Mitra", "రైతు మిత్ర")
+        H(f'<div class="phone-head"><div class="avatar">🌾</div><div><b>{title}</b>'
           f'<small>{sub}</small></div></div>')
         ss.setdefault("chat", [])
         te = lang == "te"
         relang_chat(lang)
         box = st.container(height=480, key="msgs", border=False)
+        follow_new_messages()
         with box:
             H(f'<div class="msg bot">{rich(WELCOME[lang])}</div>')
+            if quick:  # tap a suggestion to ask it
+                with st.container(horizontal=True, gap="small", key="quick_row"):
+                    for q in QUICK[lang]:
+                        if st.button(q, key=f"q_{q}"):
+                            clicked = q
             for m in ss.chat:
                 show_message(m)
-        sent = st.chat_input("మీ ప్రశ్న టైప్ చేయండి లేదా 🎤 నొక్కండి... 📎 ఫోటో కూడా పంపవచ్చు" if lang == "te"
-                             else "Type your question or tap 🎤... 📎 or send a crop photo",
-                             accept_file=True, file_type=["jpg", "jpeg", "png", "webp"], key="chat_box")
+        sent = st.chat_input("మీ ప్రశ్న టైప్ చేయండి లేదా మైక్ నొక్కండి... 📎 ఫోటో కూడా పంపవచ్చు" if lang == "te"
+                             else "Type your question or tap the mic... 📎 or send a crop photo",
+                             accept_file="multiple", file_type=MEDIA_TYPES, key="chat_box")
         mic_button(lang)
         recorded = None
         if channel == "WhatsApp":
@@ -1075,16 +1192,16 @@ def chat_window(user, main, channel, lang, provider, farmer_id, clicked):
                 ss.chat.append({"role": "user", "audio": audio, "text": ""})
                 ss.chat.append({"role": "bot", "followup": True, "tx": {
                     "en": "🎙️ I got your voice message. In this demo (Mock AI mode) a recording can't be turned into words — "
-                          "that needs an AI key. Please tap **🎤** in the chat box and speak, or type your question.",
+                          "that needs an AI key. Please tap the **mic** in the chat box and speak, or type your question.",
                     "te": "🎙️ మీ వాయిస్ మెసేజ్ అందింది. ఈ డెమో (మాక్ AI మోడ్)లో రికార్డింగ్‌ను మాటలుగా మార్చలేము — దానికి AI కీ కావాలి. "
-                          "దయచేసి చాట్ బాక్స్‌లో **🎤** నొక్కి మాట్లాడండి, లేదా ప్రశ్న టైప్ చేయండి."}})
+                          "దయచేసి చాట్ బాక్స్‌లో **మైక్** నొక్కి మాట్లాడండి, లేదా ప్రశ్న టైప్ చేయండి."}})
                 st.rerun()
             question, ss.voice_audio = VOICE_MARK + text, audio
         photos = [] if not sent or isinstance(sent, str) else list(sent.files or [])
         if photos:
-            chat_photo(user, photos[0], lang, provider, box)
+            chat_photo(user, photos, lang, provider, box)
             st.rerun()
-        voice = bool(question and question.startswith(VOICE_MARK))  # spoken with the 🎤 button
+        voice = bool(question and question.startswith(VOICE_MARK))  # spoken with the mic button
         question = question.removeprefix(VOICE_MARK) if question else question
         if question:
             ss.chat.append({"role": "user", "text": question, "voice": voice and channel == "WhatsApp",
@@ -1118,7 +1235,7 @@ def gather_lang(lang):
     return {"lang": lang} if "lang" in inspect.signature(assistant.gather).parameters else {}
 
 
-VOICE_MARK = "🎤 "  # the mic button puts this in front of a spoken question
+VOICE_MARK = "\u2063"  # invisible mark the mic button puts in front of a spoken question
 
 
 VOICE_HELLO = {"en": "Welcome to Rythu Mitra. You can now talk and ask your question.",
@@ -1127,7 +1244,7 @@ VOICE_AGAIN = {"en": "Please ask your question.", "te": "మీ ప్రశ్�
 
 
 def mic_button(lang):
-    """A 🎤 button inside the chat box: it says the welcome aloud in the chosen language, then the
+    """A mic button inside the chat box: it says the welcome aloud in the chosen language, then the
     browser listens (Chrome/Edge), fills the box and sends it. The answer is read back aloud."""
     page_js(wait_for='[data-testid="stChatInput"] textarea', code=f"""
 (() => {{
@@ -1135,7 +1252,7 @@ def mic_button(lang):
   if (!box) return;
   let b = box.querySelector('.mic-btn');
   if (!b) {{
-    b = document.createElement('button'); b.className = 'mic-btn'; b.type = 'button'; b.textContent = '🎤';
+    b = document.createElement('button'); b.className = 'mic-btn'; b.type = 'button'; b.innerHTML = '<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true"><path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2z"/></svg>';
     box.appendChild(b);
     b.onclick = () => {{
       const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -1185,17 +1302,48 @@ if (window.speechSynthesis) {{
 """)
 
 
-def chat_photo(user, photo, lang, provider, box):
-    """A crop photo sent in the chat: diagnose it, reply in the chat, save it to History."""
+MEDIA_TYPES = ["jpg", "jpeg", "png", "webp", "mp4", "mov", "webm", "mkv", "3gp", "m4v"]
+
+
+def check_media(files, provider, lang, crop=None):
+    """Any number of photos and videos of the same crop -> (diagnosis result, pictures).
+    Videos become a few still frames; everything is checked together. Raises media.MediaError."""
+    pics, _ = media.pictures([(f.getvalue(), f.type, f.name) for f in files])
+    return ai.diagnose_many(provider, media.for_ai(pics), lang, crop), pics
+
+
+def media_thumbs(files):
+    """Small previews for the chat: each photo, and the first frame of each video (marked 🎬)."""
+    out = []
+    for f in files:
+        if media.is_video(f.type, f.name):
+            first = media.video_frames(f.getvalue(), f.name, count=1)[0]
+            out.append({"url": "data:image/jpeg;base64," + base64.b64encode(first).decode(), "video": True})
+        else:
+            out.append({"url": f"data:{f.type or 'image/jpeg'};base64,{base64.b64encode(f.getvalue()).decode()}",
+                        "video": False})
+    return out
+
+
+def chat_photo(user, files, lang, provider, box):
+    """Crop photos / videos sent in the chat: diagnose them together, reply, save to History."""
     te = lang == "te"
-    data_url = f"data:{photo.type or 'image/jpeg'};base64,{base64.b64encode(photo.getvalue()).decode()}"
-    ss.chat.append({"role": "user", "image": data_url, "tx": {"te": "తెగులు సోకిన పంట ఫోటో", "en": "Photo of affected crop"}})
-    with box, st.spinner(T("Looking at the photo...", "ఫోటో పరిశీలిస్తున్నాము...")):
-        res = ai.diagnose(provider, photo.getvalue(), photo.type or "image/jpeg", lang)
+    n_vid = sum(media.is_video(f.type, f.name) for f in files)
+    n_pic = len(files) - n_vid
+    with box, st.spinner(T("Looking at the photos...", "ఫోటోలు పరిశీలిస్తున్నాము...")):
+        try:
+            res, pics = check_media(files, provider, lang)
+        except media.MediaError as e:
+            ss.chat.append({"role": "bot", "followup": True, "tx": both(lambda t: f"⚠️ {terms.te_error(str(e)) if t else e}")})
+            return
+    ss.chat.append({"role": "user", "media": media_thumbs(files), "tx": {
+        "te": f"తెగులు సోకిన పంట — {n_pic} {'ఫోటో' if n_pic == 1 else 'ఫోటోలు'}"
+              + (f", {n_vid} {'వీడియో' if n_vid == 1 else 'వీడియోలు'}" if n_vid else ""),
+        "en": f"Affected crop — {n_pic} photo{'s' if n_pic != 1 else ''}" + (f", {n_vid} video{'s' if n_vid != 1 else ''}" if n_vid else "")}})
     found = res["diagnosis"]
     saved = (found["status"] == "detected" and user["role"] == "farmer"
              and history.add(user["farmer_id"], found["disease_id"], found["confidence"], None, "Chat photo",
-                             photo=photo.getvalue()))
+                             photo=pics[0][0]))
 
     def reply(te):  # built for both languages, so it follows the language switch
         d = ai.diagnosis_in(found, "te" if te else "en")
@@ -1225,6 +1373,9 @@ def voice_note(text):
 def show_message(m):
     if m["role"] == "user":
         img = f'<img src="{m["image"]}" class="thumb">' if m.get("image") else ""
+        if m.get("media"):
+            img += '<div class="msg-media">' + "".join(
+                f'<div class="mm"><img src="{x["url"]}">{"<span>🎬</span>" if x["video"] else ""}</div>' for x in m["media"]) + "</div>"
         if m.get("audio"):
             img += f'<audio controls src="{m["audio"]}" class="vm-audio"></audio>'
         if m.get("audio") and not m.get("voice"):
@@ -1301,24 +1452,37 @@ def page_doctor(user):
         provider = seg(T("AI model", "AI మోడల్"), list(PROVIDER_LABEL), "doctor_model", PROVIDER_LABEL)
     with top_l, st.container(key="panel_photo"):
         st.markdown("## 🩺 " + T("Crop Doctor", "పంట వైద్యుడు"))
-        H('<p class="muted">' + T("Upload a photo of the affected plant. You get the problem, why it happens, and exactly "
+        H('<p class="muted">' + T("Upload photos or videos of the affected plant. You get the problem, why it happens, and exactly "
                                   "how much to spray for your field.",
-                                  "తెగులు సోకిన మొక్క ఫోటో పెట్టండి. సమస్య ఏమిటి, ఎందుకు వచ్చింది, మీ పొలానికి ఎంత మందు "
+                                  "తెగులు సోకిన మొక్క ఫోటోలు లేదా వీడియోలు పెట్టండి. సమస్య ఏమిటి, ఎందుకు వచ్చింది, మీ పొలానికి ఎంత మందు "
                                   "కొట్టాలో చెబుతాము.") + "</p>")
-        up = st.file_uploader(T("Crop photo", "పంట ఫోటో"), type=["jpg", "jpeg", "png", "webp"],
-                              label_visibility="collapsed", key="crop_photo")
-        if up:
-            c1, c2 = st.columns([1, 1.4], vertical_alignment="center")
-            c1.image(up, width="stretch")
-            if c2.button("🔍 " + T("Analyse photo", "ఫోటో పరిశీలించండి"), type="primary", width="stretch"):
+        ups = st.file_uploader(T("Crop photos and videos", "పంట ఫోటోలు, వీడియోలు"), type=MEDIA_TYPES,
+                               accept_multiple_files=True, label_visibility="collapsed", key="crop_photo")
+        st.caption(T("Add as many photos and videos as you like · photos up to 8 MB, videos up to 50 MB",
+                     "ఎన్ని ఫోటోలు, వీడియోలు అయినా జోడించవచ్చు · ఫోటో 8 MB, వీడియో 50 MB వరకు"))
+        if ups:
+            with st.container(horizontal=True, gap="small", key="doc_thumbs"):
+                for f in ups:
+                    if media.is_video(f.type, f.name):
+                        st.video(f, width=180)
+                    else:
+                        st.image(f, width=110)
+            label = T(f"🔍 Analyse {len(ups)} photo{'s' if len(ups) != 1 else ''} / video{'s' if len(ups) != 1 else ''}",
+                      f"🔍 {len(ups)} ఫోటోలు / వీడియోలు పరిశీలించండి")
+            if st.button(label, type="primary", width="stretch"):
                 with st.spinner(T("Looking at the leaves...", "ఆకులను పరిశీలిస్తున్నాం...")):
-                    res = ai.diagnose(provider, up.getvalue(), up.type or "image/jpeg", lang, crop or None)
-                log_query("pest_diagnosis", lang, provider)
-                ss.diagnosis = res
-                # Farmers: save it (with the photo) to History; the 🔔 bell asks later if the remedy worked
-                d = res["diagnosis"]
-                ss.diag_saved = bool(user["role"] == "farmer" and d["status"] == "detected" and history.add(
-                    user["farmer_id"], d["disease_id"], d["confidence"], acres, "Crop Doctor", photo=up.getvalue()))
+                    try:
+                        res, pics = check_media(ups, provider, lang, crop or None)
+                    except media.MediaError as e:
+                        st.error(err(e))
+                        res = None
+                if res:
+                    log_query("pest_diagnosis", lang, provider)
+                    ss.diagnosis = res
+                    # Farmers: save it (with the first picture) to History; the 🔔 bell asks later if the remedy worked
+                    d = res["diagnosis"]
+                    ss.diag_saved = bool(user["role"] == "farmer" and d["status"] == "detected" and history.add(
+                        user["farmer_id"], d["disease_id"], d["confidence"], acres, "Crop Doctor", photo=pics[0][0]))
 
     res = ss.get("diagnosis")
     if res:
@@ -1349,10 +1513,27 @@ def page_doctor(user):
     with st.container(key="panel_library"):
         st.markdown("### 📚 " + T("Disease library", "తెగుళ్ల సమాచారం"))
         crops = sorted({d["crop"] for d in diseases.DISEASES})
-        pick_crop = st.pills(T("Crop", "పంట"), crops, default=crops[0], key="lib_crop", format_func=crop_name) or crops[0]
-        options = [d for d in diseases.DISEASES if d["crop"] == pick_crop]
-        dz = st.selectbox(T("Problem", "సమస్య"), options, key="lib_dz",
-                          format_func=lambda d: f"{d['name_te']} ({V(d['type'])})" if is_te() else f"{d['name']} ({d['type']})")
+        # Crop buttons, and a small search beside them for any crop or problem name (English or Telugu)
+        with st.container(horizontal=True, vertical_alignment="bottom", gap="small", key="lib_crop_row"):
+            pick_crop = (st.pills(T("Crop", "పంట"), crops, default=crops[0], key="lib_crop", format_func=crop_name)
+                         or crops[0])
+            query = st.text_input(T("Search", "వెతకండి"), key="lib_q", label_visibility="collapsed", width=230,
+                                  placeholder="🔍 " + T("Search crop or problem", "పంట / సమస్య వెతకండి")).strip()
+        label = lambda d: f"{d['name_te']} ({V(d['type'])})" if is_te() else f"{d['name']} ({d['type']})"
+        if query:
+            found, crop = diseases.search(query)
+            if not found:
+                name = crop_name(crop) if crop else query
+                st.info(T(f"No problems for **{name}** in this demo library yet. Send a photo of the plant to Crop Doctor "
+                          "above, or ask your AEO.",
+                          f"**{name}** కు ఈ డెమో సమాచారంలో ఇంకా తెగుళ్లు లేవు. పైన పంట వైద్యుడికి మొక్క ఫోటో పంపండి, "
+                          "లేదా మీ AEO ని అడగండి."))
+                return
+            dz = st.selectbox(T(f"Problem · {len(found)} found", f"సమస్య · {len(found)} దొరికాయి"), found, key="lib_dz_q",
+                              format_func=lambda d: f"{crop_name(d['crop'])} · {label(d)}")
+        else:
+            options = [d for d in diseases.DISEASES if d["crop"] == pick_crop]
+            dz = st.selectbox(T("Problem", "సమస్య"), options, key="lib_dz", format_func=label)
         report(dz, acres, lang)
 
 
@@ -1406,24 +1587,31 @@ def report(d, acres, lang, confidence=None):
 WATER_ICON = {"Borewell": "🚰", "Canal": "🌊", "Tank": "💧", "Rainfed": "🌧️", "Drip": "💧", "Sprinkler": "💦"}
 
 
-def farm_profile(f, farmer_view):
-    """Profile header, land/crop summary and plot cards, with an Edit button."""
+def farm_profile(f, farmer_view, home=False, back=False):
+    """Profile header, land/crop summary and plot cards, with an Edit button.
+    home: just the Namaskaram card (farmers edit under 👤 My details). back: a Back button."""
     e = html.escape
     with st.container(key="farmhero"):
-        left, right = st.columns([3, 1.2], vertical_alignment="center")
+        left, right = st.columns([2.6, 1.6], vertical_alignment="center")
         greeting = (T("Namaskaram", "నమస్కారం") + f", {e(f['name'].split()[0])} 🙏") if farmer_view else e(f["name"])
         place = f["district_te"] if is_te() else f["district"]
         left.markdown(f"""<div class="farm-who"><div class="farm-avatar">{e(f["name"][0])}</div><div>
 <div class="farm-name">{greeting}</div>
 <div class="farm-sub">{f["farmer_id"]} · 📍 {e(f["village"])}, {place}
  · {T("Age", "వయస్సు")} {f["age"]} · {V(f["gender"])}</div></div></div>""", unsafe_allow_html=True)
-        if right.button("✏️ " + T("Edit details", "వివరాలు మార్చండి"), width="stretch"):
-            ss.editing = f["farmer_id"]
-            ss.pop(f"plot_rows_{f['farmer_id']}", None)
-            st.rerun()
+        # Edit and Back side by side on the right, away from the name
+        with right, st.container(horizontal=True, horizontal_alignment="right", gap="small", key="hero_btns"):
+            if not home and st.button("✏️ " + T("Edit details", "వివరాలు మార్చండి")):
+                ss.editing = f["farmer_id"]
+                ss.pop(f"plot_rows_{f['farmer_id']}", None)
+                st.rerun()
+            if back:
+                st.button("← " + T("Back", "వెనక్కి"), key="details_back", on_click=go_home)
     if ss.get("profile_saved") == f["farmer_id"]:
         st.success(T("Saved to your account", "మీ ఖాతాలో సేవ్ అయింది") + " ✓")
         ss.pop("profile_saved")
+    if home:
+        return
 
     chips = "".join(f"<span>{data.crop_icon(c)} {crop_name(c)}</span>" for c in f["crops"])
     H(f"""<div class="farm-stats">
@@ -1477,30 +1665,37 @@ def crop_label(name):
     return f"{data.crop_icon(name)} {te} · {name}" if is_te() else f"{data.crop_icon(name)} {name} · {te}"
 
 
-def farm_edit(f, farmer_view):
-    """Edit form for personal details and land plots; saves through profiles.update."""
+def farm_edit(f, farmer_view, setup=False):
+    """Edit form for personal details and land plots; saves through profiles.update.
+    setup: a farmer who just signed up fills an empty form (name and district come from the AEO record)."""
     o = profiles.options()
     fid = f["farmer_id"]
     rows_key = f"plot_rows_{fid}"
     if rows_key not in ss:  # one entry per plot; the number keeps widget keys stable when a plot is removed
-        ss[rows_key] = [[i, dict(p)] for i, p in enumerate(f["plots"])]
-        ss[rows_key + "_next"] = len(f["plots"])
+        ss[rows_key] = [[0, {}]] if setup else [[i, dict(p)] for i, p in enumerate(f["plots"])]
+        ss[rows_key + "_next"] = len(ss[rows_key])
     rows = ss[rows_key]
     crops = [c["name"] for c in o["crops"]]
 
     with st.container(key="panel_farmedit"):
-        st.markdown("### ✏️ " + (T("Edit my details", "నా వివరాలు మార్చండి") if farmer_view
-                                 else T("Edit farmer details", "రైతు వివరాలు మార్చండి")))
+        if setup:
+            H('<div class="setup-head"><h2>🙏 ' + T("Welcome to Rythu Mitra!", "రైతు మిత్రకు స్వాగతం!") + "</h2><p>"
+              + T("Before you start, please fill in your details, your land and your crops. We use them to give you the right advice.",
+                  "మొదలుపెట్టే ముందు మీ వివరాలు, మీ భూమి, మీ పంటలు నింపండి. వీటితోనే మీకు సరైన సలహా ఇస్తాము.")
+              + f'</p><small>{T("Farmer ID", "రైతు ID")} {fid}</small></div>')
+        else:
+            st.markdown("### ✏️ " + (T("Edit my details", "నా వివరాలు మార్చండి") if farmer_view
+                                     else T("Edit farmer details", "రైతు వివరాలు మార్చండి")))
         st.markdown("**👤 " + T("Personal details", "వ్యక్తిగత వివరాలు") + "**")
         c = st.columns(3)
         name = c[0].text_input(T("Full name", "పూర్తి పేరు"), f["name"], key=f"ed_name_{fid}")
-        village = c[1].text_input(T("Village", "గ్రామం"), f["village"], key=f"ed_village_{fid}")
+        village = c[1].text_input(T("Village", "గ్రామం"), "" if setup else f["village"], key=f"ed_village_{fid}")
         district = c[2].selectbox(T("District", "జిల్లా"), o["districts"], index=o["districts"].index(f["district"]),
                                   key=f"ed_district_{fid}", format_func=lambda d: data.DISTRICTS[d] if is_te() else d)
         c = st.columns(3)
-        age = c[0].number_input(T("Age", "వయస్సు"), 18, 100, int(f["age"]), key=f"ed_age_{fid}")
-        gender = c[1].selectbox(T("Gender", "లింగం"), o["genders"], index=o["genders"].index(f["gender"]),
-                                key=f"ed_gender_{fid}", format_func=V)
+        age = c[0].number_input(T("Age", "వయస్సు"), 18, 100, None if setup else int(f["age"]), key=f"ed_age_{fid}")
+        gender = c[1].selectbox(T("Gender", "లింగం"), o["genders"], index=None if setup else o["genders"].index(f["gender"]),
+                                key=f"ed_gender_{fid}", format_func=V, placeholder=T("Choose…", "ఎంచుకోండి…"))
         c[2].text_input(T("Mobile & bank", "మొబైల్ & బ్యాంక్"), f"{auth.mask(f['mobile'])} · {f['bank']}", disabled=True,
                         help=T("To change these, visit your AEO with proof.", "వీటిని మార్చాలంటే రుజువుతో మీ AEO ని కలవండి."))
 
@@ -1523,11 +1718,12 @@ def farm_edit(f, farmer_view):
                                       placeholder=T("Type a crop, e.g. jowar", "పంట పేరు టైప్ చేయండి, ఉదా. జొన్న"))
                 season = c[3].selectbox(T("Season", "సీజన్"), o["seasons"], index=o["seasons"].index(p.get("season", "Kharif")),
                                         key=k + "season", format_func=V)
-                soil = c[4].selectbox(T("Soil", "నేల"), o["soils"], index=o["soils"].index(p.get("soil", o["soils"][0])),
-                                      key=k + "soil", format_func=V)
+                # A new plot starts empty ("Choose…") so the farmer picks the soil and water source
+                soil = c[4].selectbox(T("Soil", "నేల"), o["soils"], index=o["soils"].index(p["soil"]) if p.get("soil") else None,
+                                      key=k + "soil", format_func=V, placeholder=T("Choose…", "ఎంచుకోండి…"))
                 water = c[5].selectbox(T("Water source", "నీటి వనరు"), o["irrigation"],
-                                       index=o["irrigation"].index(p.get("irrigation", o["irrigation"][0])), key=k + "water",
-                                       format_func=V)
+                                       index=o["irrigation"].index(p["irrigation"]) if p.get("irrigation") else None,
+                                       key=k + "water", format_func=V, placeholder=T("Choose…", "ఎంచుకోండి…"))
                 if len(rows) > 1 and c[6].button("🗑", key=k + "remove", help=T("Remove this plot", "ఈ భూమి ముక్క తీసేయండి")):
                     ss[rows_key] = [r for r in rows if r[0] != rid]
                     st.rerun()
@@ -1552,8 +1748,9 @@ def farm_edit(f, farmer_view):
         total = sum(p['area_acres'] or 0 for p in plots)
         st.caption(T(f"Total: {total:g} acres", f"మొత్తం: {total:g} ఎకరాలు"))
 
-        b1, b2, _ = st.columns([1, 1, 3])
-        if b1.button("💾 " + T("Save changes", "మార్పులు సేవ్ చేయండి"), type="primary", width="stretch", key=f"save_{fid}"):
+        b1, b2, _ = st.columns([1.3, 1, 2.7])
+        save_label = ("✅ " + T("Save and start", "సేవ్ చేసి మొదలుపెట్టండి")) if setup else ("💾 " + T("Save changes", "మార్పులు సేవ్ చేయండి"))
+        if b1.button(save_label, type="primary", width="stretch", key=f"save_{fid}"):
             try:
                 profiles.update(fid, {"name": name, "village": village, "district": district,
                                       "age": age, "gender": gender, "plots": plots})
@@ -1563,7 +1760,7 @@ def farm_edit(f, farmer_view):
                 st.rerun()
             except profiles.ProfileError as e:
                 st.error(err(e))
-        if b2.button(T("Cancel", "రద్దు చేయండి"), width="stretch", key=f"cancel_{fid}"):
+        if not setup and b2.button(T("Cancel", "రద్దు చేయండి"), width="stretch", key=f"cancel_{fid}"):
             ss.pop("editing", None)
             ss.pop(rows_key, None)
             st.rerun()
@@ -1601,6 +1798,40 @@ def payments(f):
         st.write(T("No scheme payments for you yet.", "మీకు ఇంకా పథకం డబ్బు ఏదీ లేదు."))
 
 
+def apply_scheme(fid):
+    """➕ Apply for a scheme: pick one, see the benefit, who can apply and what to bring, then send.
+    It starts as "Pending verification" and shows in the list above."""
+    st.markdown("**➕ " + T("Apply for a scheme", "పథకానికి దరఖాస్తు చేయండి") + "**")
+    done = ss.pop("applied", None)
+    if done:
+        st.success(T(f"Application for {done['scheme']} sent. ID {done['app_id']}. Status: {done['status']} — your AEO will check it.",
+                     f"{done['scheme_te']} కు దరఖాస్తు పంపాం. ID {done['app_id']}. స్థితి: {V(done['status'])} — మీ AEO పరిశీలిస్తారు."),
+                   icon="✅")
+    open_ = applications.open_schemes(fid)
+    if not open_:
+        st.caption(T("You have applied for every scheme.", "అన్ని పథకాలకు మీరు దరఖాస్తు చేశారు."))
+        return
+    s = st.selectbox(T("Scheme", "పథకం"), open_, index=None, key=f"apply_pick_{fid}", label_visibility="collapsed",
+                     format_func=lambda x: x["name_te"] if is_te() else x["name"],
+                     placeholder=T("Choose a scheme…", "పథకం ఎంచుకోండి…"))
+    if not s:
+        return
+    te = is_te()
+    H(f'<div class="apply-info"><p><b>💰 {T("Benefit", "లాభం")}:</b> {html.escape(s["benefit_te" if te else "benefit"])}</p>'
+      f'<p><b>✅ {T("Who can apply", "ఎవరు అర్హులు")}:</b> {html.escape(s["eligibility_te" if te else "eligibility"])}</p>'
+      f'<p><b>📄 {T("What to keep ready", "సిద్ధంగా ఉంచుకోవాల్సినవి")}:</b> {html.escape(s["apply_te" if te else "apply"])}</p></div>')
+    sure = st.checkbox(T("My land and bank details in My details are correct", "నా వివరాలు లో నా భూమి, బ్యాంక్ వివరాలు సరైనవి"),
+                       key=f"apply_sure_{fid}")
+    if st.button("📨 " + T("Send application", "దరఖాస్తు పంపండి"), type="primary", disabled=not sure, key=f"apply_go_{fid}"):
+        try:
+            ss.applied = assistant._app_view(applications.apply(fid, s["id"]))
+            ss.pop(f"apply_pick_{fid}", None)
+            ss.pop(f"apply_sure_{fid}", None)
+            st.rerun()
+        except applications.ApplicationError as e:
+            st.error(err(e))
+
+
 def side_sections(f, fid):
     """Applications, payments, grievances, weather and advisory: one row each (icon, name, a short
     hint and ›). Tapping a row opens what it contains."""
@@ -1608,12 +1839,15 @@ def side_sections(f, fid):
     pill = {"Credited": "green", "Approved": "green", "Resolved": "green", "Escalated": "red"}
     apps = [assistant._app_view(a) for a in f["applications"]]
 
-    with st.expander(f"📋 {T('Scheme applications', 'పథకాల దరఖాస్తులు')}  ·  {len(apps)}"):
+    with st.expander(f"📋 {T('Scheme applications', 'పథకాల దరఖాస్తులు')}  ·  {len(apps)}",
+                     expanded=bool(ss.get("applied"))):  # stays open to show the new application
         H("".join(
             f'<div class="side-row"><span class="grow"><b>{e(a["scheme_te"] if is_te() else a["scheme"])}</b>'
             f'<small class="muted">{a["app_id"]}</small></span><span class="pay-amt">'
             f'<span class="pill {pill.get(a["status"], "red" if a["status"].startswith("Rejected") else "amber")}">{e(V(a["status"]))}</span>'
             f'<small>{rupees(a["amount"]) if a["amount"] else "—"}</small></span></div>' for a in apps))
+
+        apply_scheme(fid)
 
     credited = sum(a["amount"] for a in apps if a["status"] == "Credited")
     with st.expander(f"💰 {T('Payment status', 'డబ్బు జమ స్థితి')}  ·  {rupees(credited)}"):
@@ -1664,6 +1898,35 @@ def side_sections(f, fid):
                 st.markdown(f"- {tip}")
 
 
+def page_my_details(user):
+    """👤 My details (top-right menu): the farmer's details, land and crops, with Edit."""
+    fid = user["farmer_id"]
+    f = data.FARMER_INDEX[fid]
+    if ss.get("editing") == fid:
+        farm_edit(f, True)
+    else:
+        farm_profile(f, True, back=True)
+
+
+def first_details(user):
+    """First login after sign-up: only the details form (and Log out) until it is saved."""
+    if ss.pop("ask_logout", False):
+        confirm_logout()
+    with st.container(key="topbar"):
+        left, right = st.columns([2.6, 2.4], vertical_alignment="center")
+        title = '<span class="te" style="margin:0">రైతు మిత్ర</span>' if is_te() else "Rythu Mitra"
+        left.markdown(f'<div class="brand"><div class="logo">🌾</div><div class="brand-title">{title}</div></div>',
+                      unsafe_allow_html=True)
+        with right, st.container(horizontal=True, horizontal_alignment="right", vertical_alignment="center",
+                                 gap="small", key="topright"):
+            lang_switch("lang_top")
+            if st.button("🚪 " + T("Log out", "లాగ్ అవుట్"), key="setup_logout"):
+                ss.ask_logout = True
+                st.rerun()
+    with st.container(key="setup_page"):
+        farm_edit(data.FARMER_INDEX[user["farmer_id"]], True, setup=True)
+
+
 def page_services(user):
     farmer_view = user["role"] == "farmer"
     if farmer_view:
@@ -1676,11 +1939,13 @@ def page_services(user):
     # Details and chat on the left; on the right, rows that open when tapped
     left, right = st.columns([2.4, 1], gap="medium")
     with left:
-        if ss.get("editing") == fid:
+        if farmer_view:  # just the greeting; details and Edit are under 👤 My details (top right)
+            farm_profile(f, farmer_view, home=True)
+        elif ss.get("editing") == fid:
             farm_edit(f, farmer_view)
         else:
             farm_profile(f, farmer_view)
-        if farmer_view:  # farmers ask questions right here: type, or tap 🎤 and talk
+        if farmer_view:  # farmers ask questions right here: type, or tap the mic and talk
             page_chat(user, embedded=True)
     with right, st.container(key="svc_side"):
         side_sections(f, fid)
@@ -1773,7 +2038,7 @@ FU_REASONS_TE = dict(FU_REASONS)
 
 
 def go_home():
-    """Back to the main page: My Details for farmers, the chat for staff."""
+    """Back to the main page: Home for farmers, the chat for staff."""
     ss.pop("view", None)
     ss.page = "Farmer Services" if (current_user() or {}).get("role") == "farmer" else "Farmer Chat"
 
@@ -2294,6 +2559,7 @@ Settings → Secrets). The real models then write the replies from the same fact
 H(CSS)
 init_lang()
 profiles.sync()  # pick up profile edits saved by the React app
+applications.sync()  # and scheme applications made there
 user = current_user()
 if not user and not ss.get("on_login"):
     ss.ui_lang = "te"  # the login page always opens in Telugu; the switch changes it
@@ -2313,12 +2579,16 @@ if not user:
     st.query_params.clear()
     page_js("document.getElementById('wa-float')?.remove()")
     auth_screen()
+elif user["role"] == "farmer" and profiles.needs_details(user["farmer_id"]):
+    first_details(user)  # a farmer who just signed up fills My Details before anything else
 else:
     page = header(user)
     staff = user["role"] != "farmer"
     with st.container(key="content"):
         if page == "History":
             page_history(user)
+        elif page == "My details" and not staff:
+            page_my_details(user)
         elif page == "Change password":
             page_password(user)
         elif page == "Farmer Chat":

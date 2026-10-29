@@ -13,3 +13,5 @@ backend/*.tmp
 backend/crop_history.json
 backend/crop_seasons.json
 backend/crop_photos/
+backend/today_seen.json
+backend/applications.json

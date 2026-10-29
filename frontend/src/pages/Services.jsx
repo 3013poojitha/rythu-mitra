@@ -57,9 +57,10 @@ export default function Services({ user, refreshUser, waOpen }) {
       {farmer && (
         <div className="svc-two">
           <div className="stack">
-            <MyFarm farmer={farmer} isFarmer={isFarmer}
+            {/* Farmers see just their greeting here; editing is under 👤 My details (top right) */}
+            <MyFarm farmer={farmer} isFarmer={isFarmer} view={isFarmer ? "home" : "full"}
                     onSaved={(f) => { setFarmer(f); api.farmers().then(setFarmers); refreshUser?.(); }} />
-            {/* Farmers ask questions right here: type, or tap 🎤 and talk */}
+            {/* Farmers ask questions right here: type, or tap the mic and talk */}
             {isFarmer && <div className="panel"><Chat user={user} waOpen={waOpen} embedded /></div>}
           </div>
 
@@ -75,6 +76,7 @@ export default function Services({ user, refreshUser, waOpen }) {
                   </span>
                 </div>
               ))}
+              <ApplyScheme farmer={farmer} onApplied={() => api.farmer(id).then(setFarmer)} />
             </Section>
 
             <Section icon="💰" title={t("Payment status", "డబ్బు జమ స్థితి")}
@@ -162,6 +164,72 @@ function Payments({ farmer }) {
           </div>
         );
       }) : <p className="muted">{t("No scheme payments for you yet.", "మీకు ఇంకా పథకం డబ్బు ఏదీ లేదు.")}</p>}
+    </div>
+  );
+}
+
+// ➕ Apply for a scheme: pick one, see the benefit, who can apply and what to bring, then send.
+// It starts as "Pending verification" and shows in the list above.
+function ApplyScheme({ farmer, onApplied }) {
+  const { te, t, tv, terr } = useLang();
+  const [pick, setPick] = useState("");
+  const [sure, setSure] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [done, setDone] = useState(null);
+  const [error, setError] = useState("");
+  const open = farmer.schemes_open || [];
+  const s = open.find((x) => x.id === pick);
+
+  async function send() {
+    setBusy(true);
+    setError("");
+    try {
+      const a = await api.applyScheme({ farmer_id: farmer.farmer_id, scheme_id: pick });
+      setDone(a);
+      setPick("");
+      setSure(false);
+      onApplied();
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="apply-box">
+      <h4>➕ {t("Apply for a scheme", "పథకానికి దరఖాస్తు చేయండి")}</h4>
+      {done && (
+        <div className="success">
+          ✅ {te ? `${done.scheme_te} కు దరఖాస్తు పంపాం. ID ${done.app_id}. స్థితి: ${tv(done.status)} — మీ AEO పరిశీలిస్తారు.`
+            : `Application for ${done.scheme} sent. ID ${done.app_id}. Status: ${done.status} — your AEO will check it.`}
+        </div>
+      )}
+      {!open.length ? (
+        <p className="muted">{t("You have applied for every scheme.", "అన్ని పథకాలకు మీరు దరఖాస్తు చేశారు.")}</p>
+      ) : (
+        <>
+          <select value={pick} onChange={(e) => { setPick(e.target.value); setDone(null); setError(""); }}>
+            <option value="" disabled>{t("Choose a scheme…", "పథకం ఎంచుకోండి…")}</option>
+            {open.map((x) => <option key={x.id} value={x.id}>{te ? x.name_te : x.name}</option>)}
+          </select>
+          {s && (
+            <div className="apply-info">
+              <p><b>💰 {t("Benefit", "లాభం")}:</b> {te ? s.benefit_te : s.benefit}</p>
+              <p><b>✅ {t("Who can apply", "ఎవరు అర్హులు")}:</b> {te ? s.eligibility_te : s.eligibility}</p>
+              <p><b>📄 {t("What to keep ready", "సిద్ధంగా ఉంచుకోవాల్సినవి")}:</b> {te ? s.apply_te : s.apply}</p>
+              <label className="check">
+                <input type="checkbox" checked={sure} onChange={(e) => setSure(e.target.checked)} />
+                {t("My land and bank details in My details are correct", "నా వివరాలు లో నా భూమి, బ్యాంక్ వివరాలు సరైనవి")}
+              </label>
+              <button className="primary" disabled={!sure || busy} onClick={send}>
+                {busy ? t("Sending…", "పంపుతున్నాం…") : `📨 ${t("Send application", "దరఖాస్తు పంపండి")}`}
+              </button>
+            </div>
+          )}
+          {error && <div className="error">{terr(error)}</div>}
+        </>
+      )}
     </div>
   );
 }

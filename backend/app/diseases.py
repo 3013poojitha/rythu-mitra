@@ -388,3 +388,18 @@ for _d in DISEASES:
     for _t in _d["treatments"]:
         for _k in ("reason", "when", "repeat"):
             _t[f"{_k}_te"] = TREATMENT_TE.get(_t[_k], _t[_k])
+
+
+def search(query):
+    """Disease library search: problems whose crop or name matches the typed text
+    (English or Telugu, any case). Returns (matching diseases, catalogue crop name or None)."""
+    from . import data
+    q = " ".join(str(query or "").split()).lower()
+    if not q:
+        return DISEASES, None
+    found = [d for d in DISEASES
+             if q in d["crop"].lower() or q in data.crop_te(d["crop"]) or q in d["name"].lower() or q in d["name_te"]]
+    # Which crop was typed (to name it in the "nothing yet" message); spellings vary a little, e.g. టమాట / టమాటా
+    crop = next((name for name, te, _, _ in data.CROP_CATALOG
+                 if q in (name.lower(), te) or q in name.lower().split(" (")[0] or te in q or q in te), None)
+    return found, crop

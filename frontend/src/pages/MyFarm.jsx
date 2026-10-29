@@ -25,8 +25,9 @@ const GROUP_TE = {
 };
 const masked = (m) => `${m.slice(0, 2)}xxxxxx${m.slice(-2)}`;
 
-// Farmer's profile, land and crops, with an edit form that saves to their account
-export default function MyFarm({ farmer, isFarmer, onSaved }) {
+// Farmer's profile, land and crops, with an edit form that saves to their account.
+// view: "full" (details + Edit), "home" (just the Namaskaram card), "setup" (a new farmer fills everything first)
+export default function MyFarm({ farmer, isFarmer, onSaved, view = "full", onBack }) {
   const { te, t, tv, tc, td, terr, date, time } = useLang();
   const [editing, setEditing] = useState(false);
   const opts = useProfileOptions();
@@ -35,10 +36,18 @@ export default function MyFarm({ farmer, isFarmer, onSaved }) {
   const [saved, setSaved] = useState(false);
   const [busy, setBusy] = useState(false);
 
+  const setup = view === "setup";
   useEffect(() => {
     setEditing(false);
     setSaved(false);
   }, [farmer.farmer_id]);
+  // A new farmer starts on an empty form (only the name and district from the AEO record are filled in)
+  useEffect(() => {
+    if (setup && opts && !editing) {
+      setForm({ name: farmer.name, district: farmer.district, village: "", age: "", gender: "", plots: [blankPlot()] });
+      setEditing(true);
+    }
+  }, [setup, opts]);
 
   function startEdit() {
     const f = {};
@@ -52,11 +61,15 @@ export default function MyFarm({ farmer, isFarmer, onSaved }) {
 
   const set = (k, v) => setForm({ ...form, [k]: v });
   const setPlot = (i, k, v) => set("plots", form.plots.map((p, j) => (j === i ? { ...p, [k]: v } : p)));
-  const addPlot = () =>
-    set("plots", [...form.plots, { survey_no: "", area_acres: "", crop: "", soil: opts.soils[0], irrigation: opts.irrigation[0], season: "Kharif" }]);
+  const blankPlot = () => ({ survey_no: "", area_acres: "", crop: "", soil: "", irrigation: "", season: "Kharif" });
+  const addPlot = () => set("plots", [...form.plots, blankPlot()]);
   const removePlot = (i) => set("plots", form.plots.filter((_, j) => j !== i));
   // Options show Telugu but keep the English value the backend expects
-  const options = (list) => list.map((v) => <option key={v} value={v}>{tv(v)}</option>);
+  // An empty value shows "Choose…" until the farmer picks one
+  const options = (list, value) => [
+    !value && <option key="" value="" disabled>{t("Choose…", "ఎంచుకోండి…")}</option>,
+    ...list.map((v) => <option key={v} value={v}>{tv(v)}</option>),
+  ];
 
   async function save() {
     setError("");
@@ -81,10 +94,19 @@ export default function MyFarm({ farmer, isFarmer, onSaved }) {
     const total = form.plots.reduce((s, p) => s + (Number(p.area_acres) || 0), 0);
     return (
       <div className="panel farm-edit">
-        <div className="row between wrap">
-          <h2>✏️ {isFarmer ? t("Edit my details", "నా వివరాలు మార్చండి") : t("Edit farmer details", "రైతు వివరాలు మార్చండి")}</h2>
-          <span className="muted small">{farmer.farmer_id}</span>
-        </div>
+        {setup ? (
+          <div className="setup-head">
+            <h2>🙏 {t("Welcome to Rythu Mitra!", "రైతు మిత్రకు స్వాగతం!")}</h2>
+            <p className="muted">{t("Before you start, please fill in your details, your land and your crops. We use them to give you the right advice.",
+              "మొదలుపెట్టే ముందు మీ వివరాలు, మీ భూమి, మీ పంటలు నింపండి. వీటితోనే మీకు సరైన సలహా ఇస్తాము.")}</p>
+            <span className="muted small">{t("Farmer ID", "రైతు ID")} {farmer.farmer_id}</span>
+          </div>
+        ) : (
+          <div className="row between wrap">
+            <h2>✏️ {isFarmer ? t("Edit my details", "నా వివరాలు మార్చండి") : t("Edit farmer details", "రైతు వివరాలు మార్చండి")}</h2>
+            <span className="muted small">{farmer.farmer_id}</span>
+          </div>
+        )}
 
         <h3 className="mt">👤 {t("Personal details", "వ్యక్తిగత వివరాలు")}</h3>
         <div className="form-grid">
@@ -99,7 +121,7 @@ export default function MyFarm({ farmer, isFarmer, onSaved }) {
           <div><label>{t("Age")}</label><input type="number" min="18" max="100" value={form.age} onChange={(e) => set("age", e.target.value)} /></div>
           <div>
             <label>{t("Gender")}</label>
-            <select value={form.gender} onChange={(e) => set("gender", e.target.value)}>{options(opts.genders)}</select>
+            <select value={form.gender} onChange={(e) => set("gender", e.target.value)}>{options(opts.genders, form.gender)}</select>
           </div>
           <div>
             <label>{t("Mobile & bank", "మొబైల్ & బ్యాంక్")}</label>
@@ -127,15 +149,15 @@ export default function MyFarm({ farmer, isFarmer, onSaved }) {
               </div>
               <div>
                 <label>{t("Season")}</label>
-                <select value={p.season} onChange={(e) => setPlot(i, "season", e.target.value)}>{options(opts.seasons)}</select>
+                <select value={p.season} onChange={(e) => setPlot(i, "season", e.target.value)}>{options(opts.seasons, p.season)}</select>
               </div>
               <div>
                 <label>{t("Soil")}</label>
-                <select value={p.soil} onChange={(e) => setPlot(i, "soil", e.target.value)}>{options(opts.soils)}</select>
+                <select value={p.soil} onChange={(e) => setPlot(i, "soil", e.target.value)}>{options(opts.soils, p.soil)}</select>
               </div>
               <div>
                 <label>{t("Water source")}</label>
-                <select value={p.irrigation} onChange={(e) => setPlot(i, "irrigation", e.target.value)}>{options(opts.irrigation)}</select>
+                <select value={p.irrigation} onChange={(e) => setPlot(i, "irrigation", e.target.value)}>{options(opts.irrigation, p.irrigation)}</select>
               </div>
               {/* When this crop was sown and when the harvest is expected (both optional) */}
               <div>
@@ -153,16 +175,19 @@ export default function MyFarm({ farmer, isFarmer, onSaved }) {
 
         {error && <div className="error">{terr(error)}</div>}
         <div className="row end">
-          <button onClick={() => setEditing(false)} disabled={busy}>{t("Cancel")}</button>
-          <button className="primary" onClick={save} disabled={busy}>{busy ? t("Saving…", "సేవ్ అవుతోంది…") : `💾 ${t("Save changes")}`}</button>
+          {!setup && <button onClick={() => setEditing(false)} disabled={busy}>{t("Cancel")}</button>}
+          <button className="primary" onClick={save} disabled={busy}>
+            {busy ? t("Saving…", "సేవ్ అవుతోంది…") : setup ? `✅ ${t("Save and start", "సేవ్ చేసి మొదలుపెట్టండి")}` : `💾 ${t("Save changes")}`}
+          </button>
         </div>
       </div>
     );
   }
 
+  if (setup) return <div className="panel center pad">{t("Loading…", "లోడ్ అవుతోంది…")}</div>;
+
   const first = farmer.name.split(" ")[0];
-  return (
-    <div className="stack">
+  const hero = (
       <div className="panel farm-hero">
         <div className="row between wrap">
           <div className="row">
@@ -175,10 +200,20 @@ export default function MyFarm({ farmer, isFarmer, onSaved }) {
               </p>
             </div>
           </div>
-          <button className="primary" onClick={startEdit} disabled={!opts}>✏️ {isFarmer ? t("Edit my details", "నా వివరాలు మార్చండి") : t("Edit details")}</button>
+          <div className="row gap-sm">
+            {view === "full" && <button className="primary" onClick={startEdit} disabled={!opts}>✏️ {isFarmer ? t("Edit my details", "నా వివరాలు మార్చండి") : t("Edit details")}</button>}
+            {onBack && <button onClick={onBack}>← {t("Back", "వెనక్కి")}</button>}
+          </div>
         </div>
         {saved && <div className="success">{t("Saved to your account")} ✓</div>}
       </div>
+  );
+  // Home page: just the greeting; the details and Edit live under 👤 My details in the top-right menu
+  if (view === "home") return hero;
+
+  return (
+    <div className="stack">
+      {hero}
 
       <div className="farm-stats">
         <div className="kpi"><small>{t("Total land")}</small><b>{farmer.total_acres} <span className="unit">{t("acres")}</span></b></div>

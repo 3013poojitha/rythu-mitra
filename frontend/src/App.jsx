@@ -9,8 +9,10 @@ import Services from "./pages/Services.jsx";
 import Dashboard from "./pages/Dashboard.jsx";
 import About from "./pages/About.jsx";
 import History from "./pages/History.jsx";
+import MyFarm from "./pages/MyFarm.jsx";
 import WhatsAppButton from "./WhatsAppButton.jsx";
 import Bell from "./Bell.jsx";
+import TodayUpdate from "./TodayUpdate.jsx";
 import { LangSwitch, useLang } from "./i18n.jsx";
 
 const START_HASH = location.hash; // remembered before the app rewrites it
@@ -21,7 +23,7 @@ const TABS = [
   { id: "chat", label: ["Farmer Chat", "రైతు చాట్"], sub: ["Stage 1 · Channels", "దశ 1 · చాట్ ఛానెళ్లు"], Page: Chat, roles: STAFF },
   { id: "doctor", label: ["Crop Doctor", "పంట వైద్యుడు"], sub: ["Disease & spray guide", "తెగులు & మందుల సలహా"], Page: CropDoctor },
   { id: "services", label: ["Farmer Services", "రైతు సేవలు"], sub: ["Stage 3 · 4", "దశ 3 · 4"], Page: Services,
-    farmerLabel: ["🏠 My Details", "🏠 నా వివరాలు"], farmerSub: ["Details, chat & schemes", "వివరాలు, చాట్ & పథకాలు"] },
+    farmerLabel: ["🏠 Home", "🏠 ముఖ్య పేజీ"], farmerSub: ["Chat & schemes", "చాట్ & పథకాలు"] },
   { id: "compare", label: "Claude vs ChatGPT", sub: "Model testing", Page: Compare, roles: STAFF },
   { id: "pipeline", label: "Content Pipeline", sub: "Stage 2", Page: Pipeline, roles: STAFF },
   { id: "dashboard", label: "PMU Dashboard", sub: "Governance", Page: Dashboard, roles: STAFF },
@@ -77,10 +79,14 @@ export default function App() {
   if (!user) return <Auth onLogin={onLogin} />;
 
   const isFarmer = user.role === "farmer";
+  const refreshUser = () => api.me().then(setUser).catch(() => {});
+  // A farmer who just signed up fills My Details before anything else
+  if (isFarmer && user.needs_details) return <FirstDetails user={user} done={refreshUser} onLogout={logout} />;
   const tabs = TABS.filter((x) => !x.roles || x.roles.includes(user.role))
     .sort((a, b) => (isFarmer ? (b.id === "services") - (a.id === "services") : 0));
   // Change password, History and How the app works open from the user menu (top right), not the tab bar
-  const MENU_PAGES = { password: ChangePassword, history: History, about: About };
+  const MENU_PAGES = { details: FarmerDetails, password: ChangePassword, history: History, about: About };
+  if (!isFarmer) delete MENU_PAGES.details;
   const { Page } = MENU_PAGES[tab] ? { Page: MENU_PAGES[tab] } : tabs.find((x) => x.id === tab) || tabs[0];
   const anyMock = status?.providers && Object.values(status.providers).some((p) => p.mode === "mock");
 
@@ -99,6 +105,7 @@ export default function App() {
         <div className="status">
           {/* Mock / Live AI is shown in the yellow line under the tabs, not here */}
           <LangSwitch className="on-dark" />
+          {user.role === "farmer" && <TodayUpdate />}
           {user.role === "farmer" && <Bell refresh={tab} />}
           <div className="user-menu">
             <button className="user-btn" onClick={() => setMenu(!menu)}>
@@ -108,6 +115,7 @@ export default function App() {
             {menu && (
               <div className="dropdown" onMouseLeave={() => setMenu(false)}>
                 <div className="dd-head"><b>{user.user_id}</b><small>{t("Mobile")} {user.mobile_masked}</small></div>
+                {isFarmer && <button onClick={() => { setTab("details"); setMenu(false); }}>👤 {t("My details", "నా వివరాలు")}</button>}
                 <button onClick={() => { setTab("password"); setMenu(false); }}>🔑 {t("Change password")}</button>
                 <button onClick={() => { setTab("history"); setMenu(false); }}>
                   📜 {user.role === "farmer" ? t("My history") : t("Crop history", "పంట చరిత్ర")}
@@ -126,6 +134,18 @@ export default function App() {
             <small>{tt(isFarmer && x.farmerSub ? x.farmerSub : x.sub)}</small>
           </button>
         ))}
+        {/* A page opened from the user menu shows as its own highlighted tab, so the bar says where you are */}
+        {MENU_PAGES[tab] && (
+          <button className="tab active">
+            <span>{{
+              details: `👤 ${t("My details", "నా వివరాలు")}`,
+              history: `📜 ${isFarmer ? t("My history") : t("Crop history", "పంట చరిత్ర")}`,
+              password: `🔑 ${t("Change password")}`,
+              about: `ℹ️ ${t("How the app works")}`,
+            }[tab]}</span>
+            <small>{t("From the menu", "మెనూ నుండి")}</small>
+          </button>
+        )}
       </nav>
       </div>
       {anyMock && tab !== "about" && (
@@ -139,7 +159,7 @@ export default function App() {
         </div>
       )}
       <main className="content">
-        <Page user={user} refreshUser={() => api.me().then(setUser).catch(() => {})} waOpen={waOpen}
+        <Page user={user} refreshUser={refreshUser} waOpen={waOpen}
               goHome={() => setTab(isFarmer ? "services" : "chat")} />
       </main>
       <WhatsAppButton label={t("Chat on WhatsApp", "వాట్సాప్‌లో మాట్లాడండి")}
@@ -157,6 +177,40 @@ export default function App() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// 👤 My details (top-right menu): the farmer's details, land and crops, with Edit
+function FarmerDetails({ user, refreshUser, goHome }) {
+  const [farmer, setFarmer] = useState(null);
+  useEffect(() => { api.farmer(user.farmer_id).then(setFarmer); }, [user.farmer_id]);
+  if (!farmer) return null;
+  return <MyFarm farmer={farmer} isFarmer onBack={goHome} onSaved={(f) => { setFarmer(f); refreshUser(); }} />;
+}
+
+// First login after sign-up: only the details form, until it is saved
+function FirstDetails({ user, done, onLogout }) {
+  const { te, t } = useLang();
+  const [farmer, setFarmer] = useState(null);
+  useEffect(() => { api.farmer(user.farmer_id).then(setFarmer); }, [user.farmer_id]);
+  return (
+    <div className="app">
+      <div className="sticky-head">
+        <header className="topbar">
+          <div className="brand">
+            <div className="logo">🌾</div>
+            <div className="brand-title">{te ? "రైతు మిత్ర" : "Rythu Mitra"}</div>
+          </div>
+          <div className="status">
+            <LangSwitch className="on-dark" />
+            <button className="user-btn" onClick={onLogout}>🚪 {t("Log out")}</button>
+          </div>
+        </header>
+      </div>
+      <main className="content setup-page">
+        {farmer && <MyFarm farmer={farmer} isFarmer view="setup" onSaved={done} />}
+      </main>
     </div>
   );
 }

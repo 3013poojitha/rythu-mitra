@@ -5,6 +5,7 @@ not official figures. A fixed random seed keeps the data identical on every run.
 """
 import json
 import os
+import time
 import random
 from datetime import date, datetime, timedelta
 
@@ -456,7 +457,15 @@ def write_json(path, obj):
     process can never leave a half-written (empty) save file behind."""
     tmp = path.with_name(f"{path.name}.{os.getpid()}.tmp")
     tmp.write_text(json.dumps(obj, indent=1, ensure_ascii=False), encoding="utf-8")
-    os.replace(tmp, path)
+    # On Windows the file can be locked for a moment (OneDrive sync, the other app reading it): try again
+    for attempt in range(10):
+        try:
+            os.replace(tmp, path)
+            return
+        except PermissionError:
+            if attempt == 9:
+                raise
+            time.sleep(0.1)
 
 
 def read_json(path, default):

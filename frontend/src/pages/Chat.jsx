@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { api, renderText } from "../api.jsx";
 import { useLang } from "../i18n.jsx";
+import { mediaForm, toItems } from "../MediaPicker.jsx";
 
 const QUICK = {
   en: [
@@ -26,7 +27,7 @@ const WELCOME = {
   te: "నమస్కారం! నేను రైతు మిత్ర 🌾\nమార్కెట్ ధరలు, వాతావరణం, పథకాలు, పంట సలహాల గురించి అడగండి — తెలుగులో గానీ ఇంగ్లీష్‌లో గానీ. తెగులు సోకిన మొక్క ఫోటో కూడా పంపవచ్చు.",
 };
 
-// Said aloud when the farmer taps 🎤: the full welcome the first time, then a short prompt
+// Said aloud when the farmer taps the mic: the full welcome the first time, then a short prompt
 const VOICE_HELLO = {
   en: "Welcome to Rythu Mitra. You can now talk and ask your question.",
   te: "రైతు మిత్రకు స్వాగతం. ఇప్పుడు మీరు మాట్లాడి మీ ప్రశ్న అడగవచ్చు.",
@@ -57,7 +58,7 @@ const SOURCE_TE = {
 const sourceTe = (s) => SOURCE_TE[s] || s.replace(/^State circular: /, "రాష్ట్ర సర్క్యులర్: ");
 const noteTe = (n) => (/^Live call failed/.test(n) ? "లైవ్ AI పనిచేయలేదు; మాక్ జవాబు చూపిస్తున్నాం." : n);
 
-// One chat for typing and talking: type a question, or tap 🎤 - it welcomes you aloud, listens,
+// One chat for typing and talking: type a question, or tap the mic - it welcomes you aloud, listens,
 // and reads the answer back. embedded = shown under the farmer's details on My Details.
 export default function Chat({ user, waOpen, embedded = false }) {
   const { lang, te, t, tc, td, terr } = useLang();
@@ -125,13 +126,16 @@ export default function Chat({ user, waOpen, embedded = false }) {
     }
   }
 
-  async function sendImage(file) {
-    if (!file) return;
-    const url = URL.createObjectURL(file);
-    setMessages((m) => [...m, { role: "user", image: url, make: (isTe) => (isTe ? "తెగులు సోకిన పంట ఫోటో" : "Photo of affected crop") }]);
+  // Any number of photos and videos of the sick crop, sent together and checked as one case
+  async function sendMedia(files) {
+    if (!files?.length) return;
+    const items = toItems(files);
+    const nPhotos = items.filter((x) => !x.video).length, nVideos = items.length - nPhotos;
+    setMessages((m) => [...m, { role: "user", media: items, make: (isTe) => isTe
+      ? `తెగులు సోకిన పంట — ${nPhotos} ${nPhotos === 1 ? "ఫోటో" : "ఫోటోలు"}${nVideos ? `, ${nVideos} ${nVideos === 1 ? "వీడియో" : "వీడియోలు"}` : ""}`
+      : `Affected crop — ${nPhotos} photo${nPhotos === 1 ? "" : "s"}${nVideos ? `, ${nVideos} video${nVideos === 1 ? "" : "s"}` : ""}` }]);
     setBusy(true);
-    const form = new FormData();
-    form.append("file", file);
+    const form = mediaForm(items);
     form.append("provider", provider);
     form.append("lang", lang);
     form.append("source", "Chat");
@@ -148,7 +152,8 @@ export default function Chat({ user, waOpen, embedded = false }) {
           : "\n📜 Saved to your History. After you use the remedy, tell us the result and send a photo from the 🔔 bell at the top.";
         return text + saved;
       };
-      setMessages((m) => [...m, { role: "bot", ...res, make, intent: "pest_diagnosis" }]);
+      const { media: _counts, ...reply } = res; // "media" in the reply is just the photo/video count
+      setMessages((m) => [...m, { role: "bot", ...reply, make, intent: "pest_diagnosis" }]);
     } catch (e) {
       setMessages((m) => [...m, { role: "bot", err: e.message, error: true }]);
     } finally {
@@ -157,14 +162,14 @@ export default function Chat({ user, waOpen, embedded = false }) {
     }
   }
 
-  // 🎤 tapped: say the welcome in the chosen language, then listen
+  // Mic tapped: say the welcome in the chosen language, then listen
   function micTap() {
     if (voice) return stopVoice();
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SR) return alert(t("Voice input needs Chrome or Edge.", "మాట్లాడి అడగడానికి Chrome లేదా Edge బ్రౌజర్ కావాలి."));
     const first = !greeted.current;
     greeted.current = true;
-    if (first) setMessages((m) => [...m, { role: "bot", followup: true, make: (isTe) => `🎤 ${VOICE_HELLO[isTe ? "te" : "en"]}` }]);
+    if (first) setMessages((m) => [...m, { role: "bot", followup: true, make: (isTe) => VOICE_HELLO[isTe ? "te" : "en"] }]);
     setVoice("greeting");
     speak((first ? VOICE_HELLO : VOICE_AGAIN)[lang], lang, () => listen(SR));
   }
@@ -181,8 +186,8 @@ export default function Chat({ user, waOpen, embedded = false }) {
     rec.lang = te ? "te-IN" : "en-IN";
     rec.onresult = (e) => send(e.results[0][0].transcript, true);
     rec.onerror = (e) => setMessages((m) => [...m, { role: "bot", followup: true, make: (isTe) => e.error === "not-allowed"
-      ? (isTe ? "🎤 మైక్ అనుమతి ఇవ్వండి (బ్రౌజర్ పైభాగంలో), తర్వాత మళ్లీ నొక్కండి." : "🎤 Please allow the microphone (top of the browser), then tap again.")
-      : (isTe ? "🎤 వినలేకపోయాను. మళ్లీ 🎤 నొక్కండి, లేదా ప్రశ్న టైప్ చేయండి." : "🎤 Couldn't hear you. Tap 🎤 again, or type your question.") }]);
+      ? (isTe ? "మైక్ అనుమతి ఇవ్వండి (బ్రౌజర్ పైభాగంలో), తర్వాత మళ్లీ నొక్కండి." : "Please allow the microphone (top of the browser), then tap again.")
+      : (isTe ? "వినలేకపోయాను. మళ్లీ మైక్ నొక్కండి, లేదా ప్రశ్న టైప్ చేయండి." : "Couldn't hear you. Tap the mic again, or type your question.") }]);
     rec.onend = () => setVoice((v) => (v === "listening" ? null : v));
     setVoice("listening");
     rec.start();
@@ -242,8 +247,8 @@ export default function Chat({ user, waOpen, embedded = false }) {
     }
     // Mock mode: nothing can turn a recording into words without an AI key
     setMessages((m) => [...m, { role: "user", audio, text: "" }, { role: "bot", followup: true, make: (isTe) => isTe
-      ? "🎙️ మీ వాయిస్ మెసేజ్ అందింది. ఈ డెమో (మాక్ AI మోడ్)లో రికార్డింగ్‌ను మాటలుగా మార్చలేము — దానికి AI కీ కావాలి. దయచేసి **🎤 మాట్లాడండి** బటన్ నొక్కి మాట్లాడండి, లేదా ప్రశ్న టైప్ చేయండి."
-      : "🎙️ I got your voice message. In this demo (Mock AI mode) a recording can't be turned into words — that needs an AI key. Please tap **🎤 Talk** and speak, or type your question." }]);
+      ? "🎙️ మీ వాయిస్ మెసేజ్ అందింది. ఈ డెమో (మాక్ AI మోడ్)లో రికార్డింగ్‌ను మాటలుగా మార్చలేము — దానికి AI కీ కావాలి. దయచేసి **మైక్** బటన్ నొక్కి మాట్లాడండి, లేదా ప్రశ్న టైప్ చేయండి."
+      : "🎙️ I got your voice message. In this demo (Mock AI mode) a recording can't be turned into words — that needs an AI key. Please tap the **mic** button and speak, or type your question." }]);
   }
 
   const RecordButton = () => recording
@@ -255,14 +260,7 @@ export default function Chat({ user, waOpen, embedded = false }) {
   return (
     <div className={embedded ? "chat-embedded" : "chat-layout"} ref={boxRef}>
       {embedded ? (
-        <div className="chat-embedded-head">
-          <h3>💬 {t("Ask Rythu Mitra", "రైతు మిత్రను అడగండి")}</h3>
-          <small className="muted">{t("Type your question, or tap 🎤 and speak. You can also send a 📷 crop photo.",
-            "ప్రశ్న టైప్ చేయండి, లేదా 🎤 నొక్కి మాట్లాడండి. 📷 పంట ఫోటో కూడా పంపవచ్చు.")}</small>
-          <div className="quick inline">
-            {QUICK[lang].map((q) => <button key={q} onClick={() => send(q)} disabled={busy}>{q}</button>)}
-          </div>
-        </div>
+        null
       ) : (
       <aside className="panel side">
         <h3>{t("Settings", "అమరికలు")}</h3>
@@ -292,15 +290,23 @@ export default function Chat({ user, waOpen, embedded = false }) {
         <div className="phone-head">
           <div className="avatar">🌾</div>
           <div>
-            <b>{t("Rythu Mitra")}</b>
+            {/* The farmer's chat on Home says "Ask Rythu Mitra" right in its green header */}
+            <b>{embedded ? t("Ask Rythu Mitra", "రైతు మిత్రను అడగండి") : t("Rythu Mitra")}</b>
             <small>{channel === "WhatsApp" ? t("Telangana Agriculture Dept · Verified business", "తెలంగాణ వ్యవసాయ శాఖ · ధృవీకరించిన ఖాతా")
-              : t("Type or tap 🎤 to talk", "టైప్ చేయండి లేదా 🎤 నొక్కి మాట్లాడండి")}</small>
+              : t("Type or tap the mic to talk", "టైప్ చేయండి లేదా మైక్ నొక్కి మాట్లాడండి")}</small>
           </div>
         </div>
         <div className="messages">
           {messages.map((m, i) => (
             <div key={i} className={`msg ${m.role} ${m.error ? "err" : ""} ${m.followup ? "fu" : ""}`}>
               {m.image && <img src={m.image} alt="crop" className="thumb" />}
+              {Array.isArray(m.media) && (
+                <div className="msg-media">
+                  {m.media.map((x) => (x.video
+                    ? <video key={x.url} src={x.url} controls playsInline />
+                    : <img key={x.url} src={x.url} alt="crop" />))}
+                </div>
+              )}
               {m.audio && <audio controls src={m.audio} className="vm-audio" />}
               {m.voice && !m.audio && <VoiceNote text={textOf(m)} onPlay={() => talk(textOf(m), m.lang)} mine={m.role === "user"} />}
               <div className={`bubble-text ${m.voice ? "transcript" : ""}`}>{renderText(textOf(m))}</div>
@@ -314,7 +320,11 @@ export default function Chat({ user, waOpen, embedded = false }) {
               )}
               {m.note && <div className="note">{te ? noteTe(m.note) : m.note}</div>}
             </div>
-          ))}
+          )).flatMap((el, i) => (embedded && i === 0 ? [el,
+            // Suggested questions inside the chat, under the welcome: tap one to ask it
+            <div key="quick" className="quick inline in-chat">
+              {QUICK[lang].map((q) => <button key={q} onClick={() => send(q)} disabled={busy}>{q}</button>)}
+            </div>] : [el]))}
           {busy && <div className="msg bot typing"><span /><span /><span /></div>}
           <div ref={endRef} />
         </div>
@@ -328,15 +338,15 @@ export default function Chat({ user, waOpen, embedded = false }) {
           </div>
         )}
         <div className="composer">
-          <button className="icon" title={t("Send a crop photo for pest diagnosis", "తెగులు గుర్తించడానికి పంట ఫోటో పంపండి")} onClick={() => fileRef.current.click()} disabled={busy}>📷</button>
-          <input ref={fileRef} type="file" accept="image/*" hidden onChange={(e) => sendImage(e.target.files[0])} />
+          <button className="icon" title={t("Send crop photos or videos (as many as you like)", "పంట ఫోటోలు / వీడియోలు పంపండి (ఎన్నైనా)")} onClick={() => fileRef.current.click()} disabled={busy}>📷</button>
+          <input ref={fileRef} type="file" accept="image/*,video/*" multiple hidden onChange={(e) => { sendMedia(e.target.files); e.target.value = ""; }} />
           <input
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && send()}
-            placeholder={te ? "మీ ప్రశ్న టైప్ చేయండి లేదా 🎤 నొక్కండి..." : "Type your question or tap 🎤..."}
+            placeholder={te ? "మీ ప్రశ్న టైప్ చేయండి లేదా మైక్ నొక్కండి..." : "Type your question or tap the mic..."}
           />
-          <button className={`icon mic ${voice === "listening" ? "rec" : ""}`} title={t("Tap and speak", "నొక్కి మాట్లాడండి")} onClick={micTap} disabled={busy && !voice}>🎤</button>
+          <button className={`icon mic ${voice === "listening" ? "rec" : ""}`} title={t("Tap and speak", "నొక్కి మాట్లాడండి")} onClick={micTap} disabled={busy && !voice}><MicIcon /></button>
           <button className="send" onClick={() => send()} disabled={busy || !input.trim()}>➤</button>
         </div>
         {channel === "WhatsApp" && <div className="wa-rec"><RecordButton /></div>}
@@ -364,5 +374,14 @@ function VoiceNote({ text, onPlay, mine }) {
       <span className="bars">{Array.from({ length: 22 }, (_, i) => <i key={i} style={{ height: `${4 + ((i * 7 + secs * 3) % 13)}px` }} />)}</span>
       <small>{Math.floor(secs / 60)}:{String(secs % 60).padStart(2, "0")}</small>
     </div>
+  );
+}
+
+// Microphone icon (like WhatsApp's) for the talk button; takes the button's text colour
+function MicIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true">
+      <path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2z" />
+    </svg>
   );
 }

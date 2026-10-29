@@ -1,14 +1,15 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "../api.jsx";
 import { useLang } from "../i18n.jsx";
+import MediaPicker, { mediaForm } from "../MediaPicker.jsx";
 
 const CROPS = ["Paddy", "Cotton", "Maize", "Chilli", "Red gram", "Groundnut", "Turmeric", "Soybean"];
 
 const L = {
   en: {
-    title: "Crop Doctor", sub: "Upload a photo of the affected plant. We identify the problem and tell you exactly what to spray, how much, and when.",
+    title: "Crop Doctor", sub: "Upload photos or videos of the affected plant. We identify the problem and tell you exactly what to spray, how much, and when.",
     crop: "Crop (optional - improves accuracy)", notSure: "Not sure", acres: "Your field size (acres)", photo: "Choose or take a photo",
-    detect: "Detect disease", detecting: "Checking photo…", why: "Why it happens", symptoms: "Symptoms to confirm",
+    detect: "Detect disease", detecting: "Checking photos…", why: "Why it happens", symptoms: "Symptoms to confirm",
     plan: "Treatment plan", prevention: "Prevention for next time", safety: "Safety while spraying", library: "Disease library",
     libSub: "Browse common problems and spray plans without a photo.", perL: "Dose per litre", perTank: "Per {t}-L tank",
     tanks: "Tanks needed", water: "Total water", buy: "Total product needed", when: "When to apply", repeat: "Repeat", phi: "Stop before harvest",
@@ -19,9 +20,9 @@ const L = {
     savedA: "📜 Saved to your ", savedLink: "History", savedB: ". After you use the remedy, tell us the result and send a photo from the 🔔 bell at the top.",
   },
   te: {
-    title: "పంట వైద్యుడు", sub: "తెగులు సోకిన మొక్క ఫోటో పంపండి. సమస్యను గుర్తించి, ఏ మందు, ఎంత మోతాదు, ఎప్పుడు పిచికారీ చేయాలో చెబుతాం.",
+    title: "పంట వైద్యుడు", sub: "తెగులు సోకిన మొక్క ఫోటోలు లేదా వీడియోలు పంపండి. సమస్యను గుర్తించి, ఏ మందు, ఎంత మోతాదు, ఎప్పుడు పిచికారీ చేయాలో చెబుతాం.",
     crop: "పంట (ఐచ్ఛికం - ఖచ్చితత్వం పెరుగుతుంది)", notSure: "తెలియదు", acres: "మీ పొలం విస్తీర్ణం (ఎకరాలు)", photo: "ఫోటో ఎంచుకోండి / తీయండి",
-    detect: "తెగులు గుర్తించండి", detecting: "ఫోటో పరిశీలిస్తున్నాం…", why: "ఎందుకు వస్తుంది", symptoms: "నిర్ధారించుకోవాల్సిన లక్షణాలు",
+    detect: "తెగులు గుర్తించండి", detecting: "ఫోటోలు పరిశీలిస్తున్నాం…", why: "ఎందుకు వస్తుంది", symptoms: "నిర్ధారించుకోవాల్సిన లక్షణాలు",
     plan: "నివారణ ప్రణాళిక", prevention: "ముందు జాగ్రత్తలు", safety: "పిచికారీ భద్రత", library: "తెగుళ్ల సమాచారం",
     libSub: "ఫోటో లేకుండా సాధారణ సమస్యలు, మందుల ప్రణాళికలు చూడండి.", perL: "లీటరుకు మోతాదు", perTank: "{t} లీటర్ల ట్యాంకుకు",
     tanks: "ట్యాంకులు", water: "మొత్తం నీరు", buy: "కొనవలసిన మందు", when: "ఎప్పుడు", repeat: "మళ్లీ", phi: "కోతకు ముందు ఆపండి",
@@ -53,15 +54,14 @@ export default function CropDoctor() {
   const [crop, setCrop] = useState("");
   const [acres, setAcres] = useState(1);
   const [provider, setProvider] = useState("claude");
-  const [file, setFile] = useState(null);
-  const [preview, setPreview] = useState(null);
+  const [media, setMedia] = useState([]); // any number of photos and videos
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState(null);
   const [lib, setLib] = useState(null);
   const [browse, setBrowse] = useState(null);
   const [filter, setFilter] = useState("All");
+  const [query, setQuery] = useState(""); // search any crop or problem, English or Telugu
   const [error, setError] = useState("");
-  const fileRef = useRef(null);
   const resultRef = useRef(null);
   const t = L[lang];
 
@@ -69,18 +69,15 @@ export default function CropDoctor() {
     api.diseases().then(setLib);
   }, []);
 
-  function pick(f) {
-    if (!f) return;
-    setFile(f);
-    setPreview(URL.createObjectURL(f));
+  function pick(items) {
+    setMedia(items);
     setResult(null);
   }
 
   async function detect() {
     setBusy(true);
     setError("");
-    const form = new FormData();
-    form.append("file", file);
+    const form = mediaForm(media);
     form.append("provider", provider);
     form.append("lang", lang);
     if (crop) form.append("crop", crop);
@@ -98,6 +95,11 @@ export default function CropDoctor() {
   }
 
   const byId = (id) => lib?.diseases.find((d) => d.id === id);
+  // Typed search wins over the crop buttons: matches the crop or problem name in English or Telugu
+  const q = query.trim().toLowerCase();
+  const libShown = (lib?.diseases || []).filter((d) => (q
+    ? [d.crop, d.crop_te, d.name, d.name_te].some((s) => (s || "").toLowerCase().includes(q))
+    : filter === "All" || d.crop === filter));
   const shown = browse ? byId(browse) : result?.diagnosis?.disease_id ? byId(result.diagnosis.disease_id) : null;
 
   return (
@@ -128,23 +130,28 @@ export default function CropDoctor() {
             </div>
           </div>
 
-          <div className={`dropzone ${preview ? "has" : ""}`} onClick={() => fileRef.current.click()}
-               onDragOver={(e) => e.preventDefault()} onDrop={(e) => { e.preventDefault(); pick(e.dataTransfer.files[0]); }}>
-            {preview ? <img src={preview} alt="crop" /> : <div><div className="big-icon">📷</div>{t.photo}<br /><small className="muted">{t.files}</small></div>}
-          </div>
-          <input ref={fileRef} type="file" accept="image/*" capture="environment" hidden onChange={(e) => pick(e.target.files[0])} />
+          <MediaPicker items={media} onChange={pick} />
           {error && <div className="error">{terr(error)}</div>}
-          <button className="primary full" disabled={!file || busy} onClick={detect}>{busy ? t.detecting : t.detect}</button>
+          <button className="primary full" disabled={!media.length || busy} onClick={detect}>{busy ? t.detecting : t.detect}</button>
         </div>
 
         <div className="panel">
           <h3>{t.library}</h3>
           <p className="muted small">{t.libSub}</p>
-          <div className="chips">
-            {["All", ...CROPS].map((c) => <button key={c} className={filter === c ? "on" : ""} onClick={() => setFilter(c)}>{c === "All" ? t.all : tc(c)}</button>)}
+          <div className="lib-filter">
+            <div className="chips">
+              {["All", ...CROPS].map((c) => <button key={c} className={filter === c && !q ? "on" : ""} onClick={() => { setFilter(c); setQuery(""); }}>{c === "All" ? t.all : tc(c)}</button>)}
+            </div>
+            <input className="lib-search" value={query} onChange={(e) => setQuery(e.target.value)}
+                   placeholder={`🔍 ${te ? "పంట / సమస్య వెతకండి" : "Search crop or problem"}`} />
           </div>
+          {q && !libShown.length && (
+            <p className="muted lib-none">{te
+              ? <>"<b>{query.trim()}</b>" కు ఈ డెమో సమాచారంలో ఇంకా తెగుళ్లు లేవు. పైన మొక్క ఫోటో పంపండి, లేదా మీ AEO ని అడగండి.</>
+              : <>No problems for "<b>{query.trim()}</b>" in this demo library yet. Send a photo of the plant above, or ask your AEO.</>}</p>
+          )}
           <div className="lib-list">
-            {lib?.diseases.filter((d) => filter === "All" || d.crop === filter).map((d) => (
+            {libShown.map((d) => (
               <div key={d.id} className={`lib-item ${shown?.id === d.id ? "sel" : ""}`}
                    onClick={() => { setBrowse(d.id); setTimeout(() => resultRef.current?.scrollIntoView({ behavior: "smooth" }), 50); }}>
                 <b>{te ? d.name_te : d.name}</b>

@@ -16,7 +16,7 @@ import os
 import random
 import time
 
-from . import data, diseases
+from . import data, diseases, terms
 
 AI_MODE = os.getenv("AI_MODE", "auto").lower()
 CLAUDE_MODEL = os.getenv("CLAUDE_MODEL", "claude-opus-5-5")
@@ -107,20 +107,27 @@ def transcribe(audio_bytes, filename="voice.wav", lang="te"):
 
 
 def diagnose(provider, image_bytes, media_type, lang="en", crop_hint=None):
-    """Identify a crop disease/pest from a photo.
+    """Identify a crop disease/pest from one photo (see diagnose_many for several)."""
+    return diagnose_many(provider, [(image_bytes, media_type)], lang, crop_hint)
+
+
+def diagnose_many(provider, images, lang="en", crop_hint=None):
+    """Identify a crop disease/pest from one or more pictures of the same crop
+    (photos, and still frames taken from videos). images: [(bytes, mime)].
 
     The model only picks *which* problem it is. The treatment plan and doses are
     always taken from the vetted library in diseases.py, never written by the model.
     """
     start = time.perf_counter()
+    image_bytes = images[0][0]
     pool = [d for d in diseases.DISEASES if not crop_hint or d["crop"] == crop_hint] or diseases.DISEASES
     if is_live(provider):
         options = "\n".join(f"- {d['id']}: {d['name']} on {d['crop']} ({d['type']}) - {d['symptoms']}" for d in pool)
         prompt = DIAGNOSE_PROMPT.format(hint=f" of a {crop_hint} plant" if crop_hint else "", options=options,
                                         language="Telugu" if lang == "te" else "English")
         try:
-            text, tin, tout = _call_live(provider, "You identify crop diseases from photos.", prompt,
-                                         image=(image_bytes, media_type))
+            text, tin, tout = _call_live(provider, "You identify crop diseases from photos. Several photos are "
+                                                   "of the same crop; use all of them.", prompt, images=images)
             parsed = json.loads(text[text.find("{"): text.rfind("}") + 1])
             res = _result(provider, "", start, tin, tout, live=True)
             res["diagnosis"] = _diagnosis(parsed.get("disease_id"), float(parsed.get("confidence", 0)),
@@ -162,14 +169,15 @@ def diagnosis_in(diag, lang):
 # Live API calls
 # --------------------------------------------------------------------------
 
-def _call_live(provider, system, user_text, image=None):
+def _call_live(provider, system, user_text, images=None):
+    """images: [(bytes, mime)] - one or more pictures, sent before the text."""
+    images = images or []
     if provider == "claude":
         import anthropic
         client = anthropic.Anthropic()
-        content = [{"type": "text", "text": user_text}]
-        if image:
-            content.insert(0, {"type": "image", "source": {"type": "base64", "media_type": image[1],
-                                                           "data": base64.b64encode(image[0]).decode()}})
+        content = [{"type": "image", "source": {"type": "base64", "media_type": mime,
+                                                "data": base64.b64encode(img).decode()}} for img, mime in images]
+        content.append({"type": "text", "text": user_text})
         resp = client.messages.create(model=CLAUDE_MODEL, max_tokens=4000, system=system,
                                       output_config={"effort": "low"},
                                       messages=[{"role": "user", "content": content}])
@@ -181,9 +189,8 @@ def _call_live(provider, system, user_text, image=None):
     from openai import OpenAI
     client = OpenAI()
     content = [{"type": "text", "text": user_text}]
-    if image:
-        url = f"data:{image[1]};base64,{base64.b64encode(image[0]).decode()}"
-        content.append({"type": "image_url", "image_url": {"url": url}})
+    for img, mime in images:
+        content.append({"type": "image_url", "image_url": {"url": f"data:{mime};base64,{base64.b64encode(img).decode()}"}})
     resp = client.chat.completions.create(model=OPENAI_MODEL, messages=[
         {"role": "system", "content": system}, {"role": "user", "content": content}])
     return resp.choices[0].message.content, resp.usage.prompt_tokens, resp.usage.completion_tokens
@@ -227,7 +234,7 @@ def render_mock(provider, g):
 
 
 def _rs(n):
-    return f"Rs {n:,}"
+    return f"₹{n:,}"
 
 
 def _content(g, te):
@@ -294,7 +301,7 @@ def _content(g, te):
         if f.get("farm"):
             fm = f["farm"]
             w = fm["weather_today"]
-            tip = (f"{name} గారూ, మీ {fm['area_acres']} ఎకరాల {fm['soil']} నేల, {fm['irrigation']} సాగునీరు ఆధారంగా ఈ సలహా. "
+            tip = (f"{name} గారూ, మీ {fm['area_acres']} ఎకరాల {terms.te(fm['soil'])}, {terms.te(fm['irrigation'])} సాగునీరు ఆధారంగా ఈ సలహా. "
                    f"ఈ రోజు వాతావరణం: {w['condition_te']}." if te else
                    f"{name}, this is tailored to your {fm['area_acres']} acres of {fm['soil']} soil with {fm['irrigation']} "
                    f"irrigation in {fm['district']}. Today's weather: {w['condition']}.")
@@ -305,22 +312,25 @@ def _content(g, te):
         for a in f["applications"]:
             amt = f" - {_rs(a['amount'])}" if a["amount"] else ""
             cred = (f", జమ తేదీ {a['credited_on']}" if te else f", credited on {a['credited_on']}") if a["credited_on"] else ""
-            lines.append(f"{a['scheme_te'] if te else a['scheme']} ({a['app_id']}): {a['status']}{amt}{cred}")
+            status = terms.te(a["status"]) if te else a["status"]
+            lines.append(f"{a['scheme_te'] if te else a['scheme']} ({a['app_id']}): {status}{amt}{cred}")
         rejected = any(a["status"].startswith("Rejected") for a in f["applications"])
         tip = (("తిరస్కరించబడిన దరఖాస్తుకు భూమి రికార్డులతో AEO ని కలవండి లేదా ఫిర్యాదు నమోదు చేయండి." if te else
                 "For a rejected application, visit your AEO with land records or raise a grievance here.") if rejected else None)
         return ((f"{name} గారి దరఖాస్తుల స్థితి:" if te else f"Application status for {name}:"), lines, tip)
 
     if intent == "grievance":
-        lines = [f"{x['grievance_id']} - {x['category']}: {x['status']} ({x['created_on']})" for x in f["grievances"]]
+        word = terms.te if te else (lambda v: v)  # category and status in Telugu when the farmer asks in Telugu
+        lines = [f"{x['grievance_id']} - {word(x['category'])}: {word(x['status'])} ({x['created_on']})" for x in f["grievances"]]
         if not lines:
             lines = [("మీ పేరు మీద ఫిర్యాదులు లేవు." if te else "You have no grievances on record.")]
         return (("మీ ఫిర్యాదులు:" if te else "Your grievances:"), lines,
-                ("కొత్త ఫిర్యాదు కోసం 'Farmer Services' ట్యాబ్‌లో నమోదు చేయండి." if te else
-                 "To raise a new grievance, use the 'Farmer Services' tab - you'll get a tracking ID."))
+                ("కొత్త ఫిర్యాదు కోసం ముఖ్య పేజీలో కుడివైపు 📣 ఫిర్యాదులు నొక్కండి." if te else
+                 "To raise a new grievance, tap 📣 Grievances on the right of the Home page - you'll get a tracking ID."))
 
     if intent == "land_records":
-        lines = [(f"సర్వే నం. {p['survey_no']}: {p['area_acres']} ఎకరాలు, {p['soil']}, {p['irrigation']}, పంట: {data.crop_te(p['crop'])}" if te else
+        lines = [(f"సర్వే నం. {p['survey_no']}: {p['area_acres']} ఎకరాలు, {terms.te(p['soil'])}, {terms.te(p['irrigation'])}, "
+                  f"పంట: {data.crop_te(p['crop'])}" if te else
                   f"Survey No. {p['survey_no']}: {p['area_acres']} acres, {p['soil']} soil, {p['irrigation']}, crop: {p['crop']}")
                  for p in f["plots"]]
         return ((f"{name} గారి భూమి వివరాలు (మొత్తం {f['total_acres']} ఎకరాలు):" if te else

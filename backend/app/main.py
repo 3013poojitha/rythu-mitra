@@ -16,7 +16,7 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse  # noqa: 
 from fastapi.staticfiles import StaticFiles  # noqa: E402
 from pydantic import BaseModel  # noqa: E402
 
-from . import ai, assistant, auth, data, diseases, history, pipeline, profiles, report, seasons, terms  # noqa: E402
+from . import ai, applications, assistant, auth, data, diseases, history, media, pipeline, profiles, report, seasons, terms, today  # noqa: E402
 
 app = FastAPI(title="Telangana Bharat Vistaar - Rythu Mitra API")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
@@ -36,6 +36,7 @@ def _token(request):
 async def require_login(request: Request, call_next):
     path = request.url.path
     profiles.sync()  # pick up profile edits saved by the Streamlit app
+    applications.sync()  # and scheme applications made there
     if path.startswith("/api/") and path not in PUBLIC_PATHS and request.method != "OPTIONS":
         user = auth.user_for_token(_token(request))
         if not user:
@@ -78,6 +79,11 @@ class ChatIn(BaseModel):
 class CompareIn(BaseModel):
     message: str
     farmer_id: str | None = None
+
+
+class ApplyIn(BaseModel):
+    farmer_id: str | None = None
+    scheme_id: str
 
 
 class GrievanceIn(BaseModel):
@@ -261,13 +267,17 @@ async def transcribe(file: UploadFile = File(...), lang: str = Form("te")):
 
 
 @app.post("/api/diagnose")
-async def diagnose(request: Request, file: UploadFile = File(...), provider: str = Form("claude"),
-                   lang: str = Form("en"), crop: str | None = Form(None), acres: float | None = Form(None),
-                   source: str = Form("Crop Doctor")):
-    img = await file.read()
-    if len(img) > 8 * 1024 * 1024:
-        raise HTTPException(413, "Image too large (max 8 MB)")
-    res = ai.diagnose(_provider(provider), img, file.content_type or "image/jpeg", lang, crop or None)
+async def diagnose(request: Request, files: list[UploadFile] | None = File(None), file: UploadFile | None = File(None),
+                   provider: str = Form("claude"), lang: str = Form("en"), crop: str | None = Form(None),
+                   acres: float | None = Form(None), source: str = Form("Crop Doctor")):
+    """Any number of photos and videos of the same crop ("files"; "file" still works for one photo).
+    Videos are turned into a few still frames; everything is checked together."""
+    uploads = [(await f.read(), f.content_type, f.filename) for f in (files or []) + ([file] if file else [])]
+    try:
+        pics, counts = media.pictures(uploads)
+    except media.MediaError as e:
+        raise HTTPException(413 if "too large" in str(e) else 400, str(e))
+    res = ai.diagnose_many(_provider(provider), media.for_ai(pics), lang, crop or None)
     data.QUERY_HISTORY.append({"date": date.today().isoformat(), "intent": "pest_diagnosis", "lang": lang,
                                "channel": "Web chatbot", "model": provider, "district": "Unknown", "helpful": True})
     # Farmers get every detected disease saved to their History, to give feedback on later
@@ -275,9 +285,9 @@ async def diagnose(request: Request, file: UploadFile = File(...), provider: str
     saved = None
     if u["role"] == "farmer" and res["diagnosis"]["status"] == "detected":
         saved = history.add(u["farmer_id"], res["diagnosis"]["disease_id"], res["diagnosis"]["confidence"],
-                            acres, "Chat photo" if source == "Chat" else "Crop Doctor", photo=img)
+                            acres, "Chat photo" if source == "Chat" else "Crop Doctor", photo=pics[0][0])
     both = {l: ai.diagnosis_in(res["diagnosis"], l) for l in ("te", "en")}  # follows the language switch
-    return {**res, "both": both, "stage": "Image-based crop/pest diagnosis",
+    return {**res, "both": both, "stage": "Image-based crop/pest diagnosis", "media": counts,
             "sources": ["Crop Doctor disease library (dummy)"], "history_id": saved and saved["id"]}
 
 
@@ -307,6 +317,7 @@ def farmer(farmer_id: str, request: Request):
     apps = [assistant._app_view(a) for a in f["applications"]]
     griev = [g for g in data.GRIEVANCES if g["farmer_id"] == f["farmer_id"]]
     return {**f, "applications": apps, "grievances": griev, "weather": data.WEATHER[f["district"]],
+            "schemes_open": applications.open_schemes(f["farmer_id"]),  # schemes they can apply for now
             "advisories": {c: data.ADVISORIES[c] for c in f["crops"] if c in data.ADVISORIES}}
 
 
@@ -323,6 +334,26 @@ def update_farmer(farmer_id: str, body: ProfileIn, request: Request):
     except profiles.ProfileError as e:
         raise HTTPException(400, str(e))
     return farmer(fid, request)
+
+
+# ---- Today's update (pop-up after the first login of the day) ----
+
+@app.get("/api/today")
+def today_update(request: Request, lang: str = "te"):
+    u = _user(request)
+    if u["role"] != "farmer":
+        raise HTTPException(403, "Today's update is for farmers.")
+    update = today.build(u["farmer_id"])
+    update["speech"] = {"en": today.speech(update, "en"), "te": today.speech(update, "te")}
+    return update
+
+
+@app.post("/api/today/seen")
+def today_seen(request: Request):
+    u = _user(request)
+    if u["role"] == "farmer":
+        today.mark_seen(u["farmer_id"])
+    return {"ok": True}
 
 
 # ---- Crop health history (Crop Doctor follow-up) ----
@@ -396,6 +427,16 @@ def edit_season(farmer_id: str, season_id: str, body: SeasonIn, request: Request
 def delete_season(farmer_id: str, season_id: str, request: Request):
     _season_call(seasons.delete, _own_farmer_id(request, farmer_id), season_id)
     return {"ok": True}
+
+
+@app.post("/api/applications")
+def apply_for_scheme(body: ApplyIn, request: Request):
+    """A farmer applies for a scheme from Home; it starts as Pending verification."""
+    try:
+        app_ = applications.apply(_own_farmer_id(request, body.farmer_id), body.scheme_id)
+    except applications.ApplicationError as e:
+        raise HTTPException(400, str(e))
+    return assistant._app_view(app_)
 
 
 @app.get("/api/grievances")

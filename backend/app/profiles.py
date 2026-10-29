@@ -163,6 +163,7 @@ def update(farmer_id, changes):
     old_plots = [dict(p) for p in f["plots"]]
     with _lock:
         f.update(clean)
+        f.pop("needs_details", None)  # a new farmer has now filled their details
         _recompute(f)
         f["updated_on"] = data.now_iso()
         saved = _read_file()
@@ -175,6 +176,21 @@ def update(farmer_id, changes):
     # A changed crop closes the old crop season and starts a new one in Crop history
     seasons.sync_with_plots(f["farmer_id"], old_plots, f["plots"])
     return f
+
+
+def mark_new(farmer_id):
+    """A farmer who just signed up must fill My Details before using the app."""
+    with _lock:
+        saved = _read_file()
+        saved[farmer_id] = {**saved.get(farmer_id, {}), "needs_details": True}
+        data.write_json(PROFILES_FILE, saved)
+        _seen[0] = _mtime()
+        data.FARMER_INDEX[farmer_id]["needs_details"] = True
+
+
+def needs_details(farmer_id):
+    sync()
+    return bool(data.FARMER_INDEX.get(farmer_id or "", {}).get("needs_details"))
 
 
 def _mtime():

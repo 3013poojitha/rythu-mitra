@@ -68,7 +68,8 @@ Notes:
 | NISG Contributor | `nisg.contributor` | `Contrib@123` | Staff tabs; uploads documents and does Contributor steps |
 | Department Reviewer | `dept.reviewer` | `Review@123` | Staff tabs; does Reviewer approval steps |
 | Bharat Vistaar Central | `bv.central` | `Central@123` | Staff tabs; publishes to production |
-| Farmer (Anitha Reddy) | `TS1002` | `Farmer@123` | My Details (with the chat), Crop Doctor, 🔔 bell, My history (own records only) |
+| Farmer (Anitha Reddy) | `TS1002` | `Farmer@123` | Home (with the chat), Crop Doctor, 📅 Today, 🔔 bell, My details, My history (own records only) |
+| More farmers | `TS1001`, `TS1003` to `TS1011` | `Farmer@123` | Same as TS1002, each with their own land, crops and schemes |
 
 Accounts are saved in `backend/users.json`. Delete that file and restart to reset every account back to this table.
 

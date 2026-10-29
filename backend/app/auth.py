@@ -16,7 +16,7 @@ import threading
 import time
 from pathlib import Path
 
-from . import data
+from . import data, profiles
 
 USERS_FILE = Path(__file__).resolve().parents[1] / "users.json"
 SESSIONS_FILE = Path(__file__).resolve().parents[1] / "sessions.json"
@@ -40,6 +40,10 @@ DEMO_USERS = [
     {"user_id": "dept.reviewer", "name": "Department Reviewer", "role": "reviewer", "mobile": "9000000003", "password": "Review@123"},
     {"user_id": "bv.central", "name": "BV Central Team", "role": "bv_central", "mobile": "9000000004", "password": "Central@123"},
     {"user_id": "TS1002", "role": "farmer", "farmer_id": "TS1002", "password": "Farmer@123"},
+] + [
+    # More demo farmers (all with the same demo password)
+    {"user_id": fid, "role": "farmer", "farmer_id": fid, "password": "Farmer@123"}
+    for fid in ("TS1001", "TS1003", "TS1004", "TS1005", "TS1006", "TS1007", "TS1008", "TS1009", "TS1010", "TS1011")
 ]
 
 _lock = threading.Lock()
@@ -73,6 +77,32 @@ def check_strength(password):
 
 def _save():
     data.write_json(USERS_FILE, list(USERS.values()))
+    _users_seen[0] = _users_mtime()
+
+
+def _users_mtime():
+    try:
+        return USERS_FILE.stat().st_mtime
+    except FileNotFoundError:
+        return None
+
+
+_users_seen = [None]  # modification time of users.json when we last read it
+
+
+def sync_users():
+    """Re-read users.json if the other app changed it (e.g. a farmer signed up there).
+    Records are updated in place so anyone holding one keeps the same object."""
+    if _users_mtime() == _users_seen[0]:
+        return
+    _users_seen[0] = _users_mtime()
+    for u in data.read_json(USERS_FILE, []):
+        key = u["user_id"].lower()
+        if key in USERS:
+            USERS[key].clear()
+            USERS[key].update(u)
+        else:
+            USERS[key] = u
 
 
 def _th(token):
@@ -96,8 +126,7 @@ def _sync_sessions(add=None, remove=()):
 def _load():
     _sync_sessions()
     if USERS_FILE.exists():
-        for u in data.read_json(USERS_FILE, []):
-            USERS[u["user_id"].lower()] = u
+        sync_users()
         return
     for d in DEMO_USERS:
         _create(dict(d), save=False)
@@ -120,7 +149,9 @@ def _create(d, save=True):
 
 def public(u):
     return {"user_id": u["user_id"], "name": u["name"], "role": u["role"], "role_label": ROLES[u["role"]],
-            "farmer_id": u["farmer_id"], "mobile_masked": mask(u["mobile"])}
+            "farmer_id": u["farmer_id"], "mobile_masked": mask(u["mobile"]),
+            # a newly signed-up farmer fills My Details before anything else
+            "needs_details": bool(u["farmer_id"]) and profiles.needs_details(u["farmer_id"])}
 
 
 def mask(mobile):
@@ -128,6 +159,7 @@ def mask(mobile):
 
 
 def _get(user_id):
+    sync_users()
     u = USERS.get((user_id or "").strip().lower())
     if not u:
         raise AuthError("User ID not found.", 404)
@@ -138,6 +170,7 @@ def _get(user_id):
 
 def login(user_id, password):
     with _lock:
+        sync_users()
         u = USERS.get((user_id or "").strip().lower())
         if not u:
             raise AuthError("Incorrect user ID or password.", 401)
@@ -170,6 +203,7 @@ def user_for_token(token):
         if s:
             _sync_sessions(remove=[key])
         return None
+    sync_users()
     return USERS.get(s["user_id"])
 
 
@@ -185,13 +219,16 @@ def register(farmer_id, mobile, password, confirm):
         raise AuthError("Farmer ID not found in department records.", 404)
     if (mobile or "").strip() != f["mobile"]:
         raise AuthError("Mobile number does not match the one registered with the department.")
+    sync_users()
     if farmer_id.lower() in USERS:
         raise AuthError("An account already exists for this Farmer ID. Use Login or Forgot password.", 409)
     if password != confirm:
         raise AuthError("Passwords do not match.")
     check_strength(password)
     with _lock:
-        return public(_create({"user_id": farmer_id, "role": "farmer", "farmer_id": farmer_id, "password": password}))
+        user = _create({"user_id": farmer_id, "role": "farmer", "farmer_id": farmer_id, "password": password})
+    profiles.mark_new(farmer_id)
+    return public(user)
 
 
 def forgot_password(user_id):

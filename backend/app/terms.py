@@ -131,6 +131,8 @@ UI = {
 # Error messages the backend sends, as (regular expression, Telugu). {1}, {2} are the
 # numbers/words captured by the brackets in the pattern. Use te_error(message).
 ERRORS = [
+    (r"You have already applied for this scheme\.", "ఈ పథకానికి మీరు ఇప్పటికే దరఖాస్తు చేశారు."),
+    (r"Please choose a scheme\.", "దయచేసి ఒక పథకాన్ని ఎంచుకోండి."),
     (r"Incorrect user ID or password\. (\d+) attempt\(s\) left\.", "యూజర్ ID లేదా పాస్‌వర్డ్ తప్పు. ఇంకా {1} ప్రయత్నాలు మిగిలాయి."),
     (r"Incorrect user ID or password\.", "యూజర్ ID లేదా పాస్‌వర్డ్ తప్పు."),
     (r"Account locked after too many failed attempts\. Try again in (\d+) min or reset your password\.",
@@ -198,6 +200,9 @@ ERRORS = [
     (r"Unknown photo type\.", "ఈ రకం ఫోటో తెలియదు."),
     (r"Farmer not found\.?", "రైతు వివరాలు కనబడలేదు."),
     (r"Image too large \(max 8 MB\)", "ఫోటో చాలా పెద్దది (8 MB వరకు మాత్రమే)."),
+    (r"Video too large \(max 50 MB\)", "వీడియో చాలా పెద్దది (50 MB వరకు మాత్రమే)."),
+    (r"Could not read the video\. Please send an MP4 video or photos\.", "వీడియో చదవలేకపోయాం. MP4 వీడియో లేదా ఫోటోలు పంపండి."),
+    (r"Please add at least one photo or video\.", "కనీసం ఒక ఫోటో లేదా వీడియో పెట్టండి."),
 ]
 
 

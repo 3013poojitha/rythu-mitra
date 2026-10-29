@@ -458,11 +458,13 @@ def remember_login(token):
 
 def current_user():
     """The logged-in user record, or None. After a page refresh Streamlit starts a
-    new session, so the login is picked up again from the browser cookie."""
+    new session, so the login is picked up again from the browser cookie, or from the
+    address bar (?s=...) - Streamlit Cloud does not pass cookies to the app."""
     if not ss.get("token") and not ss.get("logged_out"):
-        saved = st.context.cookies.get(COOKIE)
-        if isinstance(saved, str) and saved and auth.user_for_token(saved):
-            ss.token = saved
+        for saved in (st.context.cookies.get(COOKIE), st.query_params.get("s")):
+            if isinstance(saved, str) and saved and auth.user_for_token(saved):
+                ss.token = saved
+                break
     return auth.user_for_token(ss.get("token"))
 
 
@@ -2684,6 +2686,8 @@ if is_te():
     H(TE_CSS)
 if ss.pop("save_cookie", False):
     remember_login(ss.get("token"))
+if user and ss.get("token") and st.query_params.get("s") != ss.token:
+    st.query_params["s"] = ss.token  # so a refresh stays logged in on Streamlit Cloud too
 if ss.pop("save_lang", False):
     remember_lang()
 if not user:

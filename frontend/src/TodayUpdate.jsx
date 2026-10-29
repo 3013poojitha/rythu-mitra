@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { api } from "./api.jsx";
 import { useLang } from "./i18n.jsx";
+import { speakText, stopSpeaking } from "./speech.js";
 
 // 📅 Today's update (farmers): weather, watering, spraying and crop work due today.
 // Opens by itself after the first login of the day; the button beside the 🔔 bell opens it again.
@@ -9,6 +10,7 @@ export default function TodayUpdate() {
   const { te, lang, t, date } = useLang();
   const [update, setUpdate] = useState(null);
   const [open, setOpen] = useState(false);
+  const [voice, setVoice] = useState(null); // "preparing" | "speaking" | null
 
   useEffect(() => {
     api.today().then((u) => {
@@ -26,17 +28,16 @@ export default function TodayUpdate() {
   }
 
   function close() {
-    window.speechSynthesis?.cancel();
+    stopSpeaking();
+    setVoice(null);
     setOpen(false);
   }
 
   function readAloud() {
-    if (!window.speechSynthesis || !update) return;
-    window.speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance(update.speech[lang]);
-    u.lang = te ? "te-IN" : "en-IN";
-    window.rmUtterance = u; // keep a reference so the browser does not stop it early
-    window.speechSynthesis.speak(u);
+    if (!update) return;
+    if (voice) { stopSpeaking(); setVoice(null); return; } // tap again to stop
+    setVoice("preparing");
+    speakText(update.speech[lang], lang, { onReady: () => setVoice("speaking"), onEnd: () => setVoice(null) });
   }
 
   const w = update?.weather;
@@ -75,7 +76,8 @@ export default function TodayUpdate() {
               "పంట గుర్తుచేతలు డెమో సమయాలు మాత్రమే. ఎరువు లేదా మందు వాడే ముందు మీ AEO ని అడగండి.")}</small>
 
             <div className="today-actions">
-              <button onClick={readAloud}>🔊 {t("Read aloud", "చదివి వినిపించండి")}</button>
+              <button onClick={readAloud}>{voice === "preparing" ? `⏳ ${t("Preparing voice…", "గొంతు సిద్ధమవుతోంది…")}`
+                : voice === "speaking" ? `⏹ ${t("Stop", "ఆపండి")}` : `🔊 ${t("Read aloud", "చదివి వినిపించండి")}`}</button>
               <button className="primary" onClick={close} autoFocus>✅ {t("Done", "సరే")}</button>
             </div>
           </div>

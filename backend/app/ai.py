@@ -23,6 +23,7 @@ AI_MODE = os.getenv("AI_MODE", "auto").lower()
 CLAUDE_MODEL = os.getenv("CLAUDE_MODEL", "claude-opus-5-5")
 OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o")
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+GEMINI_TTS_MODEL = os.getenv("GEMINI_TTS_MODEL", "gemini-2.5-flash-preview-tts")  # reads Telugu aloud
 
 PROVIDERS = {
     "claude": {"label": "Claude", "key_env": "ANTHROPIC_API_KEY", "model": CLAUDE_MODEL},
@@ -122,6 +123,75 @@ def transcribe(audio_bytes, filename="voice.wav", lang="te"):
         return (res.text or "").strip() or None
     except Exception:
         return None
+
+
+_speech_cache = {}  # (lang, text) -> wav bytes, so the same text is not paid for twice
+_speech_busy = {}  # (lang, text) -> threading.Event while that audio is being made
+
+
+def speak(text, lang="te"):
+    """Text read aloud by a real voice, as WAV bytes (Gemini; needs its key), or None.
+    Browsers on Windows/Chrome usually have no Telugu voice and read Telugu letters with an
+    English voice, which sounds wrong - so Telugu is spoken by Gemini when the key is set."""
+    if not is_live("gemini"):
+        return None
+    text = " ".join(str(text or "").split())[:3000]
+    if not text:
+        return None
+    key = (lang, text)
+    if key in _speech_cache:
+        return _speech_cache[key]
+    import threading
+    busy = _speech_busy.get(key)
+    if busy:  # already being made (e.g. started when the pop-up opened): wait for it, don't ask twice
+        busy.wait(120)
+        return _speech_cache.get(key)
+    _speech_busy[key] = threading.Event()
+    try:
+        return _make_speech(key, text, lang)
+    finally:
+        _speech_busy.pop(key).set()
+
+
+def _make_speech(key, text, lang):
+    import io
+    import urllib.request
+    import wave
+    words = "in Telugu" if lang == "te" else "in Indian English"
+    body = {"contents": [{"parts": [{"text": f"Read this aloud {words}, clearly and at a natural pace: {text}"}]}],
+            "generationConfig": {"responseModalities": ["AUDIO"],
+                                 "speechConfig": {"voiceConfig": {"prebuiltVoiceConfig": {"voiceName": "Kore"}}}}}
+    req = urllib.request.Request(
+        f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_TTS_MODEL}:generateContent",
+        data=json.dumps(body).encode(), method="POST",
+        headers={"Content-Type": "application/json", "x-goog-api-key": os.getenv("GEMINI_API_KEY", "")})
+    try:
+        with urllib.request.urlopen(req, timeout=90) as r:
+            res = json.load(r)
+        pcm = base64.b64decode(res["candidates"][0]["content"]["parts"][0]["inlineData"]["data"])
+    except Exception:
+        return None
+    out = io.BytesIO()
+    with wave.open(out, "wb") as w:  # Gemini sends raw 16-bit 24 kHz mono sound; wrap it as a .wav file
+        w.setnchannels(1)
+        w.setsampwidth(2)
+        w.setframerate(24000)
+        w.writeframes(pcm)
+    if len(_speech_cache) > 200:
+        _speech_cache.clear()
+    _speech_cache[key] = out.getvalue()
+    return _speech_cache[key]
+
+
+def speak_later(text, lang="te"):
+    """The spoken audio if it is ready; otherwise start making it in the background and return None
+    (used for the short mic welcome, so the page never waits for it)."""
+    key = (lang, " ".join(str(text or "").split())[:3000])
+    if key in _speech_cache or key in _speech_busy or not is_live("gemini"):
+        return _speech_cache.get(key)
+    import threading
+    threading.Thread(target=speak, args=(text, lang), daemon=True).start()
+    return None
 
 
 def diagnose(provider, image_bytes, media_type, lang="en", crop_hint=None):

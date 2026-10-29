@@ -757,6 +757,7 @@ def open_whatsapp():
 def whatsapp_button():
     """A green WhatsApp button that floats over every page. Drag it anywhere (the spot is
     remembered); tap it to open the chat in WhatsApp style. It clicks a hidden Streamlit button."""
+    page_js(SAY_JS)  # rmSay / rmQuiet for reading aloud (the mic welcome uses them)
     st.button("WhatsApp", key="wa_open", on_click=open_whatsapp)
     label = T("Chat on WhatsApp", "వాట్సాప్‌లో మాట్లాడండి")
     page_js(f"""
@@ -1023,6 +1024,8 @@ def today_update(user):
     lang = ss.ui_lang
     te = lang == "te"
     u = today.build(user["farmer_id"])
+    if lang == "te":
+        ai.speak_later(today.speech(u, "te"), "te")  # start the Telugu voice now, so Read aloud is quick
 
     def lines(items):
         return "".join(f'<div class="today-line {x["tone"]}"><span class="today-icon">{x["icon"]}</span>'
@@ -1046,7 +1049,7 @@ def today_update(user):
         if c1.button("🔊 " + T("Read aloud", "చదివి వినిపించండి"), width="stretch", key="today_speak"):
             speak_aloud(today.speech(u, lang), lang)
         if c2.button("✅ " + T("Done", "సరే"), type="primary", width="stretch", key="today_done"):
-            page_js("window.speechSynthesis && speechSynthesis.cancel()")
+            page_js("window.rmQuiet && rmQuiet()")
             st.rerun()
 
     st.dialog("🌾 " + T("Today on your farm", "ఈరోజు మీ పొలంలో"), width="medium")(box)()
@@ -1289,6 +1292,13 @@ VOICE_HELLO = {"en": "Welcome to Rythu Mitra. You can now talk and ask your ques
 VOICE_AGAIN = {"en": "Please ask your question.", "te": "మీ ప్రశ్న అడగండి."}
 
 
+def audio_url(text):
+    """Telugu audio for a short fixed sentence, if Gemini has made it already (it is made in the
+    background the first time, so the page never waits)."""
+    audio = ai.speak_later(text, "te")
+    return "data:audio/wav;base64," + base64.b64encode(audio).decode() if audio else ""
+
+
 def mic_button(lang):
     """A mic button inside the chat box: it says the welcome aloud in the chosen language, then the
     browser listens (Chrome/Edge), fills the box and sends it. The answer is read back aloud."""
@@ -1317,18 +1327,16 @@ def mic_button(lang):
         rec.start();
       }};
       // Welcome aloud first (the full welcome once, then a short prompt), then listen
-      const hello = window.rmGreeted ? JSON.parse(b.dataset.again) : JSON.parse(b.dataset.hello);
+      const again = !!window.rmGreeted;
+      const hello = again ? JSON.parse(b.dataset.again) : JSON.parse(b.dataset.hello);
       window.rmGreeted = true;
-      if (!window.speechSynthesis) return listen();
-      speechSynthesis.cancel();
-      const u = new SpeechSynthesisUtterance(hello[te ? 'te' : 'en']); u.lang = te ? 'te-IN' : 'en-IN';
-      u.onend = u.onerror = listen;
-      window.rmUtterance = u;  // keep a reference: Chrome can drop it before it ends, and then never listens
       b.classList.add('talk');
-      speechSynthesis.speak(u);
+      rmSay(hello[te ? 'te' : 'en'], te ? 'te' : 'en', (again ? b.dataset.againUrl : b.dataset.helloUrl) || '', listen);
     }};
   }}
   b.dataset.lang = '{lang}';
+  b.dataset.helloUrl = '{audio_url(VOICE_HELLO["te"]) if lang == "te" else ""}';  // Gemini Telugu voice, when ready
+  b.dataset.againUrl = '{audio_url(VOICE_AGAIN["te"]) if lang == "te" else ""}';
   b.dataset.hello = {json.dumps(json.dumps(VOICE_HELLO, ensure_ascii=False))};
   b.dataset.again = {json.dumps(json.dumps(VOICE_AGAIN, ensure_ascii=False))};
   b.title = '{"మాట్లాడండి" if lang == "te" else "Speak"}';
@@ -1337,15 +1345,32 @@ def mic_button(lang):
 
 
 def speak_aloud(text, lang):
-    """Read the reply to a spoken question aloud with the browser's voice."""
-    clean = json.dumps(re.sub(r"\*\*|[•💡➡️📄⚠️]", "", text))
-    page_js(f"""
-if (window.speechSynthesis) {{
-  speechSynthesis.cancel();
-  const u = new SpeechSynthesisUtterance({clean}); u.lang = '{"te-IN" if lang == "te" else "en-IN"}';
-  speechSynthesis.speak(u);
-}}
-""")
+    """Read text aloud with a real voice for the language. Chrome on Windows has no Telugu voice and
+    reads Telugu letters with an English voice, which sounds wrong - so Telugu is spoken by Gemini
+    (when its key is set); otherwise the browser's own Telugu voice if it has one (Edge does)."""
+    clean = re.sub(r"\*\*|[•💡➡️📄⚠️]", "", text)
+    audio = None
+    if lang == "te":
+        with st.spinner("గొంతు సిద్ధమవుతోంది…"):
+            audio = ai.speak(clean, lang)
+    url = "data:audio/wav;base64," + base64.b64encode(audio).decode() if audio else ""
+    page_js(SAY_JS + f"rmSay({json.dumps(clean)}, '{lang}', '{url}');")
+
+
+# rmSay(text, lang, audioUrl, onEnd) / rmQuiet(): read aloud in the app page (see speak_aloud)
+SAY_JS = """
+window.rmQuiet = () => { window.speechSynthesis && speechSynthesis.cancel(); if (window.rmAudio) { window.rmAudio.onended = null; window.rmAudio.pause(); window.rmAudio = null; } };
+window.rmSay = (text, lang, url, onEnd) => {
+  rmQuiet();
+  const done = () => onEnd && onEnd();
+  if (url) { const a = new Audio(url); window.rmAudio = a; a.onended = a.onerror = done; a.play().catch(done); return; }
+  const voices = window.speechSynthesis ? speechSynthesis.getVoices() : [];
+  const own = voices.find((v) => (v.lang || '').toLowerCase().startsWith(lang === 'te' ? 'te' : 'en-in'));
+  if (!window.speechSynthesis || (lang === 'te' && !own)) return done();  // no Telugu voice: say nothing rather than garble it
+  const u = new SpeechSynthesisUtterance(text); u.lang = lang === 'te' ? 'te-IN' : 'en-IN'; if (own) u.voice = own;
+  u.onend = u.onerror = done; window.rmUtterance = u; speechSynthesis.speak(u);
+};
+"""
 
 
 MEDIA_TYPES = ["jpg", "jpeg", "png", "webp", "mp4", "mov", "webm", "mkv", "3gp", "m4v"]
@@ -1962,6 +1987,8 @@ def consent_screen(user):
     "I agree" opens the app, "No" logs out with a short message."""
     lang = ss.ui_lang
     t = consent.TEXT[lang]
+    if lang == "te":
+        ai.speak_later(consent.speech("te"), "te")  # start the Telugu voice now, so Read aloud is quick
     with st.container(key="topbar"):
         left, right = st.columns([2.6, 2.4], vertical_alignment="center")
         title = '<span class="te" style="margin:0">రైతు మిత్ర</span>' if is_te() else "Rythu Mitra"
@@ -1981,11 +2008,11 @@ def consent_screen(user):
             speak_aloud(consent.speech(lang), lang)
         if c2.button("✖ " + t["decline"], width="stretch", key="consent_no"):
             consent.record(user["farmer_id"], False, lang)
-            page_js("window.speechSynthesis && speechSynthesis.cancel()")
+            page_js("window.rmQuiet && rmQuiet()")
             log_out({"te": consent.TEXT["te"]["declined"], "en": consent.TEXT["en"]["declined"]})
         if c3.button("✅ " + t["agree"], type="primary", width="stretch", key="consent_yes"):
             consent.record(user["farmer_id"], True, lang)
-            page_js("window.speechSynthesis && speechSynthesis.cancel()")
+            page_js("window.rmQuiet && rmQuiet()")
             st.rerun()
 
 

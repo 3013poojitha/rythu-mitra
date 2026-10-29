@@ -81,6 +81,11 @@ class CompareIn(BaseModel):
     farmer_id: str | None = None
 
 
+class SpeakIn(BaseModel):
+    text: str
+    lang: str = "te"
+
+
 class ConsentIn(BaseModel):
     agree: bool
     lang: str = "te"
@@ -361,10 +366,21 @@ def update_farmer(farmer_id: str, body: ProfileIn, request: Request):
     return farmer(fid, request)
 
 
+# ---- Read aloud with a real Telugu voice ----
+
+@app.post("/api/speak")
+def speak(body: SpeakIn):
+    """WAV audio of the text (Gemini voice). 204 = no voice here; the browser reads it instead."""
+    from fastapi import Response
+    audio = ai.speak(body.text, body.lang)
+    return Response(audio, media_type="audio/wav") if audio else Response(status_code=204)
+
+
 # ---- Consent (farmers agree once before using the app) ----
 
 @app.get("/api/consent")
 def consent_text():
+    ai.speak_later(consent.speech("te"), "te")  # start the Telugu voice now, so Read aloud is quick
     return {"text": consent.TEXT, "speech": {"te": consent.speech("te"), "en": consent.speech("en")},
             "version": consent.VERSION}
 
@@ -386,6 +402,7 @@ def today_update(request: Request, lang: str = "te"):
         raise HTTPException(403, "Today's update is for farmers.")
     update = today.build(u["farmer_id"])
     update["speech"] = {"en": today.speech(update, "en"), "te": today.speech(update, "te")}
+    ai.speak_later(update["speech"]["te"], "te")  # start the Telugu voice now, so Read aloud is quick
     return update
 
 

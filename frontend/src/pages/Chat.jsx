@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { api, renderText } from "../api.jsx";
 import { useLang } from "../i18n.jsx";
+import { speakText, stopSpeaking } from "../speech.js";
 import { mediaForm, toItems } from "../MediaPicker.jsx";
 
 const QUICK = {
@@ -175,7 +176,7 @@ export default function Chat({ user, waOpen, embedded = false }) {
   }
 
   function stopVoice() {
-    window.speechSynthesis?.cancel();
+    stopSpeaking();
     recRef.current?.abort();
     setVoice(null);
   }
@@ -356,14 +357,9 @@ export default function Chat({ user, waOpen, embedded = false }) {
   );
 }
 
+// Read aloud with a real voice for the language (see speech.js)
 function speak(text, lang, onEnd) {
-  if (!window.speechSynthesis) return onEnd?.();
-  window.speechSynthesis.cancel();
-  const u = new SpeechSynthesisUtterance(text.replace(/\*\*/g, "").replace(/[•💡➡️📄⚠️]/gu, ""));
-  u.lang = lang === "te" ? "te-IN" : "en-IN";
-  u.onend = u.onerror = () => onEnd?.();
-  window.rmUtterance = u; // keep a reference: Chrome can drop it before it ends, and then onEnd never runs
-  window.speechSynthesis.speak(u);
+  speakText(text, lang, { onEnd });
 }
 
 // WhatsApp-style voice note: play button, sound bars and length (about 2.5 words a second)

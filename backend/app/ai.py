@@ -21,10 +21,12 @@ from . import data, diseases, terms
 AI_MODE = os.getenv("AI_MODE", "auto").lower()
 CLAUDE_MODEL = os.getenv("CLAUDE_MODEL", "claude-opus-5-5")
 OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o")
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
 
 PROVIDERS = {
     "claude": {"label": "Claude", "key_env": "ANTHROPIC_API_KEY", "model": CLAUDE_MODEL},
     "gpt": {"label": "ChatGPT", "key_env": "OPENAI_API_KEY", "model": OPENAI_MODEL},
+    "gemini": {"label": "Gemini", "key_env": "GEMINI_API_KEY", "model": GEMINI_MODEL},
 }
 
 SYSTEM_PROMPT = (
@@ -42,6 +44,14 @@ def is_live(provider):
         return False
     has_key = bool(os.getenv(PROVIDERS[provider]["key_env"]))
     return has_key if AI_MODE == "auto" else True
+
+
+def pick(provider):
+    """The model to really use: the one asked for if its key is set, otherwise any model that
+    has a key (so farmers get real AI with whichever key was added), otherwise the one asked for (mock)."""
+    if is_live(provider):
+        return provider
+    return next((p for p in PROVIDERS if is_live(p)), provider)
 
 
 def status():
@@ -96,6 +106,13 @@ def transcribe(audio_bytes, filename="voice.wav", lang="te"):
     """Turn a recorded voice message into text. Needs the OpenAI key (Whisper);
     in mock mode there is nothing that can listen to a recording, so this returns None."""
     if not is_live("gpt"):
+        if is_live("gemini"):  # Gemini can listen to a recording too
+            try:
+                text, _, _ = _call_live("gemini", "Write down exactly what is said in this recording, nothing else.",
+                                        "Telugu" if lang == "te" else "English", [(audio_bytes, _audio_mime(filename))])
+                return text.strip() or None
+            except Exception:
+                return None
         return None
     try:
         from openai import OpenAI
@@ -169,9 +186,36 @@ def diagnosis_in(diag, lang):
 # Live API calls
 # --------------------------------------------------------------------------
 
+def _audio_mime(filename):
+    ext = (filename or "").rsplit(".", 1)[-1].lower()
+    return {"wav": "audio/wav", "mp3": "audio/mp3", "ogg": "audio/ogg", "m4a": "audio/aac"}.get(ext, "audio/webm")
+
+
+def _call_gemini(system, user_text, images):
+    """Google Gemini over its REST API (no extra library needed). images: [(bytes, mime)]."""
+    import urllib.request
+    parts = [{"inline_data": {"mime_type": mime, "data": base64.b64encode(data).decode()}} for data, mime in images]
+    parts.append({"text": user_text})
+    body = {"system_instruction": {"parts": [{"text": system}]}, "contents": [{"role": "user", "parts": parts}]}
+    req = urllib.request.Request(
+        f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent",
+        data=json.dumps(body).encode(), method="POST",
+        headers={"Content-Type": "application/json", "x-goog-api-key": os.getenv("GEMINI_API_KEY", "")})
+    with urllib.request.urlopen(req, timeout=60) as r:
+        res = json.load(r)
+    cand = (res.get("candidates") or [{}])[0]
+    text = "".join(p.get("text", "") for p in cand.get("content", {}).get("parts", []))
+    if not text:
+        raise RuntimeError(f"Gemini gave no answer ({cand.get('finishReason', 'no reason')})")
+    usage = res.get("usageMetadata", {})
+    return text, usage.get("promptTokenCount", 0), usage.get("candidatesTokenCount", 0)
+
+
 def _call_live(provider, system, user_text, images=None):
     """images: [(bytes, mime)] - one or more pictures, sent before the text."""
     images = images or []
+    if provider == "gemini":
+        return _call_gemini(system, user_text, images)
     if provider == "claude":
         import anthropic
         client = anthropic.Anthropic()

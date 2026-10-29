@@ -30,7 +30,7 @@ from dotenv import load_dotenv  # noqa: E402
 
 load_dotenv(ROOT / "backend" / ".env")
 try:
-    for k in ("AI_MODE", "ANTHROPIC_API_KEY", "OPENAI_API_KEY", "CLAUDE_MODEL", "OPENAI_MODEL"):
+    for k in ("AI_MODE", "ANTHROPIC_API_KEY", "OPENAI_API_KEY", "GEMINI_API_KEY", "CLAUDE_MODEL", "OPENAI_MODEL", "GEMINI_MODEL"):
         if k in st.secrets:
             os.environ[k] = str(st.secrets[k])
 except Exception:  # no secrets file - fine, stays in mock mode
@@ -41,7 +41,8 @@ from app import report as farm_report  # noqa: E402  (this file has its own repo
 
 st.set_page_config(page_title="Rythu Mitra - Telangana x Bharat Vistaar", page_icon="🌾", layout="wide")
 
-PROVIDER_LABEL = {"claude": "Claude", "gpt": "ChatGPT"}
+PROVIDER_LABEL = {"claude": "Claude", "gpt": "ChatGPT"}  # compared side by side on the test page
+MODEL_CHOICES = {**PROVIDER_LABEL, "gemini": "Gemini"}  # chat and Crop Doctor
 ss = st.session_state
 
 CSS = """
@@ -909,7 +910,7 @@ def header(user):
     if ss.get("view") in MENU_PAGES:
         page = MENU_PAGES[ss.view]
     st.query_params["page"] = ss.view if page in MENU_PAGES.values() else slugs[page]
-    if any(p["mode"] == "mock" for p in status.values()) and page != "How the app works":
+    if all(p["mode"] == "mock" for p in status.values()) and page != "How the app works":  # no AI key at all
         H('<div class="banner">' + T(
             "Running in <b>Mock AI mode</b> — no API keys needed. Answers come from dummy data "
             "with simulated model replies. See <b>How the app works</b> in the menu at the top right.",
@@ -1150,7 +1151,7 @@ def page_chat(user, embedded=False):
     side, main = st.columns([1, 2.6], gap="medium")
     with side, st.container(key="panel_settings"):
         st.markdown("### " + T("Settings", "సెట్టింగ్‌లు"))
-        provider = seg(T("AI model", "AI మోడల్"), list(PROVIDER_LABEL), "chat_model", PROVIDER_LABEL)
+        provider = seg(T("AI model", "AI మోడల్"), list(MODEL_CHOICES), "chat_model", MODEL_CHOICES)
         if user["role"] == "farmer":
             farmer_id = user["farmer_id"]
             st.text_input(T("Logged in as", "లాగిన్ అయిన రైతు ID"), farmer_id, disabled=True)
@@ -1255,7 +1256,7 @@ def chat_window(user, main, channel, lang, provider, farmer_id, clicked, quick=F
                 show_message(ss.chat[-1])
                 with st.spinner(T("Typing...", "టైప్ చేస్తోంది...")):
                     gathered = assistant.gather(question, farmer_id or None, **gather_lang(lang))
-                    res = ai.answer(provider, question, gathered)
+                    res = ai.answer(ai.pick(provider), question, gathered)
             log_query(gathered["intent"], gathered["lang"], provider, channel, farmer_id)
             ss.chat.append({"role": "bot", **res, "stage": gathered["stage"], "sources": gathered["sources"],
                             "voice": voice and channel == "WhatsApp", "lang": gathered["lang"],
@@ -1271,7 +1272,7 @@ def relang_chat(lang):
         if m.get("ask") and m.get("lang") != lang:
             a = m["ask"]
             gathered = assistant.gather(a["question"], a["farmer_id"], **gather_lang(lang))
-            m.update(ai.answer(a["provider"], a["question"], gathered), stage=gathered["stage"],
+            m.update(ai.answer(ai.pick(a["provider"]), a["question"], gathered), stage=gathered["stage"],
                      sources=gathered["sources"], lang=lang)
 
 
@@ -1354,7 +1355,7 @@ def check_media(files, provider, lang, crop=None):
     """Any number of photos and videos of the same crop -> (diagnosis result, pictures).
     Videos become a few still frames; everything is checked together. Raises media.MediaError."""
     pics, _ = media.pictures([(f.getvalue(), f.type, f.name) for f in files])
-    return ai.diagnose_many(provider, media.for_ai(pics), lang, crop), pics
+    return ai.diagnose_many(ai.pick(provider), media.for_ai(pics), lang, crop), pics
 
 
 def media_thumbs(files):
@@ -1494,7 +1495,7 @@ def page_doctor(user):
         crop = st.selectbox(T("Crop (optional)", "పంట (తప్పనిసరి కాదు)"), [""] + list(data.CROPS),
                             format_func=lambda c: crop_name(c) if c else T("Not sure", "తెలియదు"))
         acres = st.number_input(T("Field size (acres)", "పొలం విస్తీర్ణం (ఎకరాలు)"), 0.1, 100.0, 1.0, 0.5)
-        provider = seg(T("AI model", "AI మోడల్"), list(PROVIDER_LABEL), "doctor_model", PROVIDER_LABEL)
+        provider = seg(T("AI model", "AI మోడల్"), list(MODEL_CHOICES), "doctor_model", MODEL_CHOICES)
     with top_l, st.container(key="panel_photo"):
         st.markdown("## 🩺 " + T("Crop Doctor", "పంట వైద్యుడు"))
         H('<p class="muted">' + T("Upload photos or videos of the affected plant. You get the problem, why it happens, and exactly "

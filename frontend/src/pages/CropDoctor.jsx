@@ -126,6 +126,7 @@ export default function CropDoctor() {
               <div className="seg">
                 <button className={provider === "claude" ? "on" : ""} onClick={() => setProvider("claude")}>Claude</button>
                 <button className={provider === "gpt" ? "on" : ""} onClick={() => setProvider("gpt")}>ChatGPT</button>
+                <button className={provider === "gemini" ? "on" : ""} onClick={() => setProvider("gemini")}>Gemini</button>
               </div>
             </div>
           </div>

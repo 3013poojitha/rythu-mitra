@@ -183,7 +183,7 @@ class ChangePasswordIn(BaseModel):
 def _provider(p):
     if p not in ai.PROVIDERS:
         raise HTTPException(400, f"provider must be one of {list(ai.PROVIDERS)}")
-    return p
+    return ai.pick(p)  # a model without a key falls back to one that has a key
 
 
 def _log(gathered, provider, channel, farmer_id=None):

@@ -268,6 +268,7 @@ export default function Chat({ user, waOpen, embedded = false }) {
         <div className="seg">
           <button className={provider === "claude" ? "on" : ""} onClick={() => setProvider("claude")}>Claude</button>
           <button className={provider === "gpt" ? "on" : ""} onClick={() => setProvider("gpt")}>ChatGPT</button>
+                <button className={provider === "gemini" ? "on" : ""} onClick={() => setProvider("gemini")}>Gemini</button>
         </div>
         <label>{isFarmer ? t("Logged in as", "లాగిన్ అయినవారు") : t("Farmer ID (staff can test any farmer)", "రైతు ID (సిబ్బంది ఏ రైతునైనా పరీక్షించవచ్చు)")}</label>
         <input list="farmer-ids" value={farmerId} onChange={(e) => setFarmerId(e.target.value)} placeholder={t("e.g. TS1001 — optional", "ఉదా. TS1001 (అవసరమైతే)")} readOnly={isFarmer} />

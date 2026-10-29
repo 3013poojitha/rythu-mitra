@@ -92,7 +92,8 @@ export default function App() {
   const MENU_PAGES = { details: FarmerDetails, password: ChangePassword, history: History, about: About };
   if (!isFarmer) delete MENU_PAGES.details;
   const { Page } = MENU_PAGES[tab] ? { Page: MENU_PAGES[tab] } : tabs.find((x) => x.id === tab) || tabs[0];
-  const anyMock = status?.providers && Object.values(status.providers).some((p) => p.mode === "mock");
+  // The "Mock AI mode" banner shows only when no AI key is set at all
+  const anyMock = status?.providers && Object.values(status.providers).every((p) => p.mode === "mock");
 
   return (
     <div className="app">

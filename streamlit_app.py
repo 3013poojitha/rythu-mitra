@@ -36,7 +36,7 @@ try:
 except Exception:  # no secrets file - fine, stays in mock mode
     pass
 
-from app import ai, applications, assistant, auth, data, diseases, history, media, pipeline, profiles, seasons, terms, today  # noqa: E402
+from app import ai, applications, assistant, auth, consent, data, diseases, history, media, pipeline, profiles, seasons, terms, today  # noqa: E402
 from app import report as farm_report  # noqa: E402  (this file has its own report() for Crop Doctor)
 
 st.set_page_config(page_title="Rythu Mitra - Telangana x Bharat Vistaar", page_icon="🌾", layout="wide")
@@ -261,6 +261,17 @@ button[data-variant="segmented_control"][aria-checked="true"] p, button[data-var
 .st-key-svc_side .rain { color: #1565c0; }
 .crop-dates { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; margin-top: 6px; font-size: 13px; }
 .st-key-setup_page { max-width: 1000px; margin: 0 auto; }
+/* Consent screen (once, before the app) */
+.st-key-consent_page { max-width: 680px; margin: 0 auto; background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 18px 20px; }
+.consent { display: flex; flex-direction: column; gap: 8px; font-size: 15px; line-height: 1.5; }
+.consent h2 { text-align: center; margin: 0; padding: 0; font-size: 22px !important; }
+.consent h3 { margin: 6px 0 0; padding: 0; font-size: 17px !important; }
+.consent p, .consent ul { margin: 0; }
+.consent small { color: #5b6b5f; }
+.consent-icon { font-size: 2.4rem; text-align: center; }
+.consent-keeps { display: flex; flex-direction: column; gap: 6px; }
+.consent-keeps div { display: flex; gap: 10px; background: #f5f7f4; border-radius: 10px; padding: 8px 12px; }
+.consent-promise { list-style: none; padding: 10px 12px !important; background: var(--brand-soft); border-radius: 10px; }
 .apply-info { background: #f5f7f4; border-radius: 10px; padding: 10px 12px; font-size: 13px; margin-bottom: 8px; }
 .apply-info p { margin: 0 0 6px; }
 .st-key-lib_crop_row { flex-wrap: wrap; }
@@ -576,7 +587,8 @@ def auth_screen():
     with card, st.container(key="panel_auth"):
         lang_switch("lang_auth")  # a farmer can pick Telugu or English before logging in
         if ss.get("notice"):
-            st.success(ss.pop("notice"))
+            n = ss.pop("notice")  # text, or {"te": ..., "en": ...} that follows the language switch
+            st.success(n[ss.ui_lang] if isinstance(n, dict) else n)
         mode = ss.get("auth_mode", "login")
         if mode == "login":
             login_form()
@@ -741,12 +753,14 @@ def whatsapp_button():
 """)
 
 
-def log_out():
+def log_out(notice=None):
     auth.logout(ss.pop("token", None))
     lang = ss.ui_lang
     ss.clear()
     ss.ui_lang = lang  # the login screen stays in the same language
     ss.logged_out = True  # don't log straight back in from the old cookie
+    if notice:
+        ss.notice = notice  # shown on the login screen
     st.rerun()
 
 
@@ -1908,6 +1922,38 @@ def page_my_details(user):
         farm_profile(f, True, back=True)
 
 
+def consent_screen(user):
+    """🔒 Consent: shown once to every farmer before the app. Says what the app keeps and why;
+    "I agree" opens the app, "No" logs out with a short message."""
+    lang = ss.ui_lang
+    t = consent.TEXT[lang]
+    with st.container(key="topbar"):
+        left, right = st.columns([2.6, 2.4], vertical_alignment="center")
+        title = '<span class="te" style="margin:0">రైతు మిత్ర</span>' if is_te() else "Rythu Mitra"
+        left.markdown(f'<div class="brand"><div class="logo">🌾</div><div class="brand-title">{title}</div></div>',
+                      unsafe_allow_html=True)
+        with right, st.container(horizontal=True, horizontal_alignment="right", key="topright"):
+            lang_switch("lang_top")
+    with st.container(key="consent_page"):
+        keeps = "".join(f"<div><span>{icon}</span>{html.escape(line)}</div>" for icon, line in t["keeps"])
+        uses = "".join(f"<li>{html.escape(u)}</li>" for u in t["uses"])
+        promise = "".join(f"<li>✔️ {html.escape(p)}</li>" for p in t["promise"])
+        H(f'<div class="consent"><div class="consent-icon">🔒</div><h2>{t["title"]}</h2><p>{t["intro"]}</p>'
+          f'<div class="consent-keeps">{keeps}</div><h3>{t["use_title"]}</h3><ul>{uses}</ul>'
+          f'<ul class="consent-promise">{promise}</ul><small>{t["law"]}</small></div>')
+        c1, c2, c3 = st.columns([1, 1, 2])
+        if c1.button("🔊 " + T("Read aloud", "చదివి వినిపించండి"), width="stretch", key="consent_speak"):
+            speak_aloud(consent.speech(lang), lang)
+        if c2.button("✖ " + t["decline"], width="stretch", key="consent_no"):
+            consent.record(user["farmer_id"], False, lang)
+            page_js("window.speechSynthesis && speechSynthesis.cancel()")
+            log_out({"te": consent.TEXT["te"]["declined"], "en": consent.TEXT["en"]["declined"]})
+        if c3.button("✅ " + t["agree"], type="primary", width="stretch", key="consent_yes"):
+            consent.record(user["farmer_id"], True, lang)
+            page_js("window.speechSynthesis && speechSynthesis.cancel()")
+            st.rerun()
+
+
 def first_details(user):
     """First login after sign-up: only the details form (and Log out) until it is saved."""
     if ss.pop("ask_logout", False):
@@ -2579,6 +2625,8 @@ if not user:
     st.query_params.clear()
     page_js("document.getElementById('wa-float')?.remove()")
     auth_screen()
+elif user["role"] == "farmer" and not consent.given(user["farmer_id"]):
+    consent_screen(user)  # every farmer agrees once before using the app
 elif user["role"] == "farmer" and profiles.needs_details(user["farmer_id"]):
     first_details(user)  # a farmer who just signed up fills My Details before anything else
 else:

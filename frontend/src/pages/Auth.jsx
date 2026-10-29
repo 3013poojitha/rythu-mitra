@@ -3,11 +3,11 @@ import { api, session } from "../api.jsx";
 import { LangSwitch, useLang } from "../i18n.jsx";
 
 // Login, farmer sign-up, forgot password and reset password - one card that switches between modes
-export default function Auth({ onLogin }) {
+export default function Auth({ onLogin, startNotice = null }) {
   const { te, t, setLang } = useLang();
   useEffect(() => setLang("te"), []); // the login page always opens in Telugu; the switch changes it
   const [mode, setMode] = useState("login");
-  const [notice, setNotice] = useState(null); // [English, Telugu]
+  const [notice, setNotice] = useState(startNotice); // [English, Telugu]
   const [resetFor, setResetFor] = useState(null); // {user_id, sent_to, demo_otp}
 
   const go = (m, msg = null) => {

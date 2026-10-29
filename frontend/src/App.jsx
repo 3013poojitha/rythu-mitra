@@ -13,6 +13,7 @@ import MyFarm from "./pages/MyFarm.jsx";
 import WhatsAppButton from "./WhatsAppButton.jsx";
 import Bell from "./Bell.jsx";
 import TodayUpdate from "./TodayUpdate.jsx";
+import Consent from "./Consent.jsx";
 import { LangSwitch, useLang } from "./i18n.jsx";
 
 const START_HASH = location.hash; // remembered before the app rewrites it
@@ -44,6 +45,7 @@ export default function App() {
   const [status, setStatus] = useState(null);
   const [menu, setMenu] = useState(false);
   const [askLogout, setAskLogout] = useState(false); // "Do you want to log out?" box
+  const [byeNotice, setByeNotice] = useState(null);
   const [waOpen, setWaOpen] = useState(0); // goes up each time the floating WhatsApp button is tapped
 
   useEffect(() => {
@@ -67,7 +69,8 @@ export default function App() {
     if (user) loadCrops(); // Telugu crop names
   }, [user?.user_id]);
 
-  async function logout() {
+  async function logout(notice = null) {
+    setByeNotice(Array.isArray(notice) ? notice : null); // [English, Telugu]: why they were logged out, shown on the login page
     await api.logout().catch(() => {});
     session.clear();
     setUser(null);
@@ -76,11 +79,12 @@ export default function App() {
   }
 
   if (checking) return <div className="center pad">{t("Loading…", "లోడ్ అవుతోంది…")}</div>;
-  if (!user) return <Auth onLogin={onLogin} />;
+  if (!user) return <Auth onLogin={onLogin} startNotice={byeNotice} />;
 
   const isFarmer = user.role === "farmer";
   const refreshUser = () => api.me().then(setUser).catch(() => {});
-  // A farmer who just signed up fills My Details before anything else
+  // Every farmer agrees to the consent screen once, then a farmer who just signed up fills My Details
+  if (isFarmer && user.needs_consent) return <Consent done={refreshUser} onDecline={logout} />;
   if (isFarmer && user.needs_details) return <FirstDetails user={user} done={refreshUser} onLogout={logout} />;
   const tabs = TABS.filter((x) => !x.roles || x.roles.includes(user.role))
     .sort((a, b) => (isFarmer ? (b.id === "services") - (a.id === "services") : 0));

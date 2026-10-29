@@ -15,3 +15,4 @@ backend/crop_seasons.json
 backend/crop_photos/
 backend/today_seen.json
 backend/applications.json
+backend/consent.json

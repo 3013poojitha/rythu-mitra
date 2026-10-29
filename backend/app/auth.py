@@ -16,7 +16,7 @@ import threading
 import time
 from pathlib import Path
 
-from . import data, profiles
+from . import consent, data, profiles
 
 USERS_FILE = Path(__file__).resolve().parents[1] / "users.json"
 SESSIONS_FILE = Path(__file__).resolve().parents[1] / "sessions.json"
@@ -151,7 +151,9 @@ def public(u):
     return {"user_id": u["user_id"], "name": u["name"], "role": u["role"], "role_label": ROLES[u["role"]],
             "farmer_id": u["farmer_id"], "mobile_masked": mask(u["mobile"]),
             # a newly signed-up farmer fills My Details before anything else
-            "needs_details": bool(u["farmer_id"]) and profiles.needs_details(u["farmer_id"])}
+            "needs_details": bool(u["farmer_id"]) and profiles.needs_details(u["farmer_id"]),
+            # every farmer agrees to the consent screen once before using the app
+            "needs_consent": bool(u["farmer_id"]) and not consent.given(u["farmer_id"])}
 
 
 def mask(mobile):

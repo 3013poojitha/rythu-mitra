@@ -16,7 +16,7 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse  # noqa: 
 from fastapi.staticfiles import StaticFiles  # noqa: E402
 from pydantic import BaseModel  # noqa: E402
 
-from . import ai, applications, assistant, auth, data, diseases, history, media, pipeline, profiles, report, seasons, terms, today  # noqa: E402
+from . import ai, applications, assistant, auth, consent, data, diseases, history, media, pipeline, profiles, report, seasons, terms, today  # noqa: E402
 
 app = FastAPI(title="Telangana Bharat Vistaar - Rythu Mitra API")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
@@ -79,6 +79,11 @@ class ChatIn(BaseModel):
 class CompareIn(BaseModel):
     message: str
     farmer_id: str | None = None
+
+
+class ConsentIn(BaseModel):
+    agree: bool
+    lang: str = "te"
 
 
 class ApplyIn(BaseModel):
@@ -334,6 +339,22 @@ def update_farmer(farmer_id: str, body: ProfileIn, request: Request):
     except profiles.ProfileError as e:
         raise HTTPException(400, str(e))
     return farmer(fid, request)
+
+
+# ---- Consent (farmers agree once before using the app) ----
+
+@app.get("/api/consent")
+def consent_text():
+    return {"text": consent.TEXT, "speech": {"te": consent.speech("te"), "en": consent.speech("en")},
+            "version": consent.VERSION}
+
+
+@app.post("/api/consent")
+def consent_answer(body: ConsentIn, request: Request):
+    u = _user(request)
+    if u["role"] == "farmer":
+        consent.record(u["farmer_id"], body.agree, body.lang)
+    return auth.public(u)
 
 
 # ---- Today's update (pop-up after the first login of the day) ----

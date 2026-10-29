@@ -279,6 +279,20 @@ button.full { width: 100%; padding: 10px; margin-top: 14px; }
 .chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 12px; }
 .chips button { padding: 4px 10px; font-size: 12px; border-radius: 99px; }
 .chips button.on { background: var(--brand); color: #fff; border-color: var(--brand); }
+/* 🔒 Consent screen (once, before the app) */
+.consent-page { max-width: 640px; margin: 0 auto; }
+.consent { display: flex; flex-direction: column; gap: 8px; font-size: 15px; line-height: 1.5; }
+.consent h2 { text-align: center; margin: 0; }
+.consent h3 { margin: 6px 0 0; font-size: 16px; }
+.consent p, .consent ul { margin: 0; }
+.consent-icon { font-size: 2.4rem; text-align: center; }
+.consent-keeps { display: flex; flex-direction: column; gap: 6px; }
+.consent-keeps div { display: flex; gap: 10px; background: #f5f7f4; border-radius: 10px; padding: 8px 12px; }
+.consent-promise { list-style: none; padding: 0; background: var(--brand-soft); border-radius: 10px; padding: 10px 12px; }
+.consent-actions { display: flex; gap: 10px; margin-top: 8px; flex-wrap: wrap; }
+.consent-actions button { flex: 1; padding: 12px; font-size: 16px; min-width: 140px; }
+.consent-actions .primary { flex: 2; }
+
 /* ➕ Apply for a scheme (Home, inside Scheme applications) */
 .apply-box { border-top: 1px dashed var(--line); margin-top: 10px; padding-top: 10px; display: flex; flex-direction: column; gap: 8px; }
 .apply-box h4 { margin: 0; }

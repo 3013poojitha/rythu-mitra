@@ -127,6 +127,7 @@ def transcribe(audio_bytes, filename="voice.wav", lang="te"):
 
 _speech_cache = {}  # (lang, text) -> wav bytes, so the same text is not paid for twice
 _speech_busy = {}  # (lang, text) -> threading.Event while that audio is being made
+speech_error = [""]  # why the last voice request failed (shown by the ?debug=1 check)
 
 
 def speak(text, lang="te"):
@@ -169,7 +170,8 @@ def _make_speech(key, text, lang):
         with urllib.request.urlopen(req, timeout=90) as r:
             res = json.load(r)
         pcm = base64.b64decode(res["candidates"][0]["content"]["parts"][0]["inlineData"]["data"])
-    except Exception:
+    except Exception as e:
+        speech_error[0] = f"{getattr(e, 'code', '')} {e.read().decode()[:300] if hasattr(e, 'read') else str(e)[:300]}"
         return None
     out = io.BytesIO()
     with wave.open(out, "wb") as w:  # Gemini sends raw 16-bit 24 kHz mono sound; wrap it as a .wav file

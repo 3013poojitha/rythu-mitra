@@ -600,7 +600,7 @@ def debug_ai():
         except Exception as e:
             msg = e.read().decode()[:200] if hasattr(e, "read") else str(e)[:200]
             lines.append(f"Gemini chat test: FAILED {getattr(e, 'code', '')} {msg}")
-        lines.append("Gemini voice test: " + ("OK" if ai.speak("నమస్కారం", "te") else "FAILED"))
+        lines.append("Gemini voice test: " + ("OK" if ai.speak("నమస్కారం", "te") else "FAILED " + ai.speech_error[0]))
     st.code("\n".join(lines))
 
 

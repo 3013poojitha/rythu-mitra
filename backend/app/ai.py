@@ -156,6 +156,7 @@ def speak(text, lang="te"):
 
 def _make_speech(key, text, lang):
     import io
+    import urllib.error
     import urllib.request
     import wave
     words = "in Telugu" if lang == "te" else "in Indian English"
@@ -167,8 +168,15 @@ def _make_speech(key, text, lang):
         data=json.dumps(body).encode(), method="POST",
         headers={"Content-Type": "application/json", "x-goog-api-key": os.getenv("GEMINI_API_KEY", "")})
     try:
-        with urllib.request.urlopen(req, timeout=90) as r:
-            res = json.load(r)
+        for attempt in range(3):  # free keys allow only a few voice requests a minute: wait and try again
+            try:
+                with urllib.request.urlopen(req, timeout=90) as r:
+                    res = json.load(r)
+                break
+            except urllib.error.HTTPError as e:
+                if e.code not in (429, 503) or attempt == 2:
+                    raise
+                time.sleep(6 * (attempt + 1))
         pcm = base64.b64decode(res["candidates"][0]["content"]["parts"][0]["inlineData"]["data"])
     except Exception as e:
         speech_error[0] = f"{getattr(e, 'code', '')} {e.read().decode()[:300] if hasattr(e, 'read') else str(e)[:300]}"

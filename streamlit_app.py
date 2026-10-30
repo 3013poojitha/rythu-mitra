@@ -29,12 +29,23 @@ sys.path.insert(0, str(ROOT / "backend"))
 from dotenv import load_dotenv  # noqa: E402
 
 load_dotenv(ROOT / "backend" / ".env")
+SECRET_NAMES = ("AI_MODE", "ANTHROPIC_API_KEY", "OPENAI_API_KEY", "GEMINI_API_KEY", "CLAUDE_MODEL", "OPENAI_MODEL", "GEMINI_MODEL")
+SECRETS_NOTE = "no secrets"  # shown on the login page with ?debug=1 (never the key itself)
 try:
-    for k in ("AI_MODE", "ANTHROPIC_API_KEY", "OPENAI_API_KEY", "GEMINI_API_KEY", "CLAUDE_MODEL", "OPENAI_MODEL", "GEMINI_MODEL"):
-        if k in st.secrets:
-            os.environ[k] = str(st.secrets[k])
-except Exception:  # no secrets file - fine, stays in mock mode
-    pass
+    found = {k: st.secrets[k] for k in SECRET_NAMES if k in st.secrets}
+    for section in st.secrets.values():  # also accept keys put under a [section] heading
+        if hasattr(section, "keys"):
+            found.update({k: section[k] for k in SECRET_NAMES if k in section and k not in found})
+    for k, v in found.items():
+        # forgive small paste mistakes: spaces, quotes, or the name pasted twice (KEY=KEY=...)
+        v = str(v).strip().strip("'\"").strip()
+        if v.startswith(k + "="):
+            v = v[len(k) + 1:].strip().strip("'\"").strip()
+        os.environ[k] = v
+    SECRETS_NOTE = ("found " + ", ".join(sorted(found))) if found else "Secrets has none of the AI key names"
+except Exception as e:  # no secrets file - fine, stays in mock mode
+    SECRETS_NOTE = ("no Secrets set (keys come from backend/.env)" if type(e).__name__ == "StreamlitSecretNotFoundError"
+                    else f"Secrets could not be read ({type(e).__name__}) - check the text in the Secrets box")
 
 # Streamlit reruns this file after a code update but keeps the old backend modules in memory, so the
 # new file could call something the old modules do not have. When the backend files change, load them fresh.
@@ -577,8 +588,26 @@ def remember_lang():
 # Login, sign up, forgot / reset password
 # ---------------------------------------------------------------------------
 
+def debug_ai():
+    """?debug=1 on the login page: is the AI key picked up, and does Google accept it? (never shows the key)"""
+    k = os.getenv("GEMINI_API_KEY", "")
+    lines = [f"Secrets: {SECRETS_NOTE}", f"GEMINI_API_KEY: {'set, ' + str(len(k)) + ' characters' if k else 'not set'}",
+             "Modes: " + ", ".join(f"{p}={v['mode']}" for p, v in ai.status().items())]
+    if k:
+        try:
+            ai._call_gemini("Reply with one word.", "Say OK", [])
+            lines.append("Gemini chat test: OK")
+        except Exception as e:
+            msg = e.read().decode()[:200] if hasattr(e, "read") else str(e)[:200]
+            lines.append(f"Gemini chat test: FAILED {getattr(e, 'code', '')} {msg}")
+        lines.append("Gemini voice test: " + ("OK" if ai.speak("నమస్కారం", "te") else "FAILED"))
+    st.code("\n".join(lines))
+
+
 def auth_screen():
     H(AUTH_CSS)
+    if ss.get("debug_ai"):
+        debug_ai()
     hero, card = st.columns([1.2, 1], gap="large")
     with hero:
         if is_te():
@@ -2695,6 +2724,8 @@ if not user:
     if ss.get("logged_out") and not ss.get("cookie_cleared"):
         remember_login(None)
         ss.cookie_cleared = True
+    if st.query_params.get("debug") == "1":
+        ss.debug_ai = True  # remember ?debug=1 before the address is cleared
     st.query_params.clear()
     page_js("document.getElementById('wa-float')?.remove()")
     auth_screen()

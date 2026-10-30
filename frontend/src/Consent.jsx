@@ -5,13 +5,24 @@ import { speakText, stopSpeaking } from "./speech.js";
 
 // 🔒 Consent: shown once to every farmer before the app. Says what the app keeps and why;
 // "I agree" opens the app, "No" logs out with a short message.
-export default function Consent({ done, onDecline }) {
+// The "I agree" is also remembered in this browser: free hosting wipes the server's saved answers
+// when it restarts, and the farmer should not be asked again on the same phone.
+const agreedKey = (fid) => `rythu_consent_${fid}`;
+const agreedHere = (fid) => { try { return localStorage.getItem(agreedKey(fid)) === "1"; } catch { return false; } };
+
+export default function Consent({ farmerId, done, onDecline }) {
   const { te, lang } = useLang();
   const [info, setInfo] = useState(null);
   const [busy, setBusy] = useState(false);
   const [voice, setVoice] = useState(null); // "preparing" | "speaking" | null
 
-  useEffect(() => { api.consentText().then(setInfo).catch(() => {}); }, []);
+  useEffect(() => {
+    if (agreedHere(farmerId)) {  // agreed before on this device: record it again quietly and go on
+      api.consentAnswer({ agree: true, lang }).then(done).catch(() => api.consentText().then(setInfo));
+      return;
+    }
+    api.consentText().then(setInfo).catch(() => {});
+  }, []);
   useEffect(() => () => stopSpeaking(), []);
 
   async function answer(agree) {
@@ -22,7 +33,10 @@ export default function Consent({ done, onDecline }) {
     } finally {
       setBusy(false);
     }
-    if (agree) done();
+    if (agree) {
+      try { localStorage.setItem(agreedKey(farmerId), "1"); } catch { /* storage blocked: asked again next time */ }
+      done();
+    }
     else onDecline([info.text.en.declined, info.text.te.declined]);
   }
 

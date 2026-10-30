@@ -84,7 +84,7 @@ export default function App() {
   const isFarmer = user.role === "farmer";
   const refreshUser = () => api.me().then(setUser).catch(() => {});
   // Every farmer agrees to the consent screen once, then a farmer who just signed up fills My Details
-  if (isFarmer && user.needs_consent) return <Consent done={refreshUser} onDecline={logout} />;
+  if (isFarmer && user.needs_consent) return <Consent farmerId={user.farmer_id} done={refreshUser} onDecline={logout} />;
   if (isFarmer && user.needs_details) return <FirstDetails user={user} done={refreshUser} onLogout={logout} />;
   const tabs = TABS.filter((x) => !x.roles || x.roles.includes(user.role))
     .sort((a, b) => (isFarmer ? (b.id === "services") - (a.id === "services") : 0));

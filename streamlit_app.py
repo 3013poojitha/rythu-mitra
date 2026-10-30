@@ -218,7 +218,7 @@ button[data-variant="segmented_control"][aria-checked="true"] p, button[data-var
 .wa-float { position: fixed; right: 20px; bottom: 20px; z-index: 1000; width: 60px; height: 60px; border-radius: 50%; border: 0; padding: 0; background: #25d366; display: grid; place-items: center; box-shadow: 0 6px 18px rgba(0,0,0,.25); cursor: grab; touch-action: none; user-select: none; }
 .wa-float:hover { background: #1ebe5b; }
 .wa-float:active { cursor: grabbing; transform: scale(1.06); }
-.st-key-wa_open { display: none !important; }
+.st-key-wa_open, .st-key-consent_auto { display: none !important; }
 /* Voice pad: big Talk button + record a voice message */
 .st-key-voice_pad { background: #fff; border-top: 1px solid var(--line); padding: 12px 14px 4px; gap: 6px; }
 .voice-status { font-weight: 600; color: var(--brand-dark); text-align: center; font-size: 14px; }
@@ -2034,6 +2034,24 @@ def consent_screen(user):
                       unsafe_allow_html=True)
         with right, st.container(horizontal=True, horizontal_alignment="right", key="topright"):
             lang_switch("lang_top")
+    # Agreed before on this device? Free hosting wipes the saved answers when it restarts, so the
+    # "I agree" is also kept in the browser; if it is there, a hidden button records it again.
+    fid = user["farmer_id"]
+    if st.button("auto", key="consent_auto"):
+        consent.record(fid, True, lang)
+        st.rerun()
+    page_js(f"""
+const k = 'rythu_consent_{fid}';
+let agreed = false;
+try {{ agreed = localStorage.getItem(k) === '1'; }} catch (e) {{}}
+if (agreed) {{ document.querySelector('.st-key-consent_auto button')?.click(); }}
+else {{
+  const yes = document.querySelector('.st-key-consent_yes button');
+  if (yes && !yes.dataset.remember) {{
+    yes.dataset.remember = '1';
+    yes.addEventListener('click', () => {{ try {{ localStorage.setItem(k, '1'); }} catch (e) {{}} }}, true);
+  }}
+}}""", wait_for=".st-key-consent_yes button")
     with st.container(key="consent_page"):
         keeps = "".join(f"<div><span>{icon}</span>{html.escape(line)}</div>" for icon, line in t["keeps"])
         uses = "".join(f"<li>{html.escape(u)}</li>" for u in t["uses"])

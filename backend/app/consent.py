@@ -36,7 +36,6 @@ TEXT = {
         "agree": "నేను అంగీకరిస్తున్నాను",
         "decline": "వద్దు",
         "declined": "అనుమతి ఇవ్వకుండా యాప్ వాడలేరు. సందేహాలుంటే రైతు వేదికలో మీ AEO ని అడగండి. మీకు ఇష్టమైనప్పుడు మళ్లీ లాగిన్ చేయండి.",
-        "law": "డిజిటల్ వ్యక్తిగత సమాచార రక్షణ చట్టం, 2023 ప్రకారం (డెమో పాఠ్యం).",
     },
     "en": {
         "title": "Your information — your permission",
@@ -60,7 +59,6 @@ TEXT = {
         "agree": "I agree",
         "decline": "No",
         "declined": "You cannot use the app without giving permission. Ask your AEO at the Rythu Vedika if you have questions. Log in again whenever you are ready.",
-        "law": "As required by the Digital Personal Data Protection Act, 2023 (demo text).",
     },
 }
 

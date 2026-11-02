@@ -70,7 +70,6 @@ export default function Consent({ farmerId, done, onDecline }) {
             <h3>{t.use_title}</h3>
             <ul>{t.uses.map((u) => <li key={u}>{u}</li>)}</ul>
             <ul className="consent-promise">{t.promise.map((p) => <li key={p}>✔️ {p}</li>)}</ul>
-            <small className="muted">{t.law}</small>
             <div className="consent-actions">
               <button onClick={readAloud}>{voice === "preparing" ? (te ? "⏳ గొంతు సిద్ధమవుతోంది…" : "⏳ Preparing voice…")
                 : voice === "speaking" ? (te ? "⏹ ఆపండి" : "⏹ Stop") : (te ? "🔊 చదివి వినిపించండి" : "🔊 Read aloud")}</button>

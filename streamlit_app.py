@@ -2058,7 +2058,7 @@ else {{
         promise = "".join(f"<li>✔️ {html.escape(p)}</li>" for p in t["promise"])
         H(f'<div class="consent"><div class="consent-icon">🔒</div><h2>{t["title"]}</h2><p>{t["intro"]}</p>'
           f'<div class="consent-keeps">{keeps}</div><h3>{t["use_title"]}</h3><ul>{uses}</ul>'
-          f'<ul class="consent-promise">{promise}</ul><small>{t["law"]}</small></div>')
+          f'<ul class="consent-promise">{promise}</ul></div>')
         c1, c2, c3 = st.columns([1, 1, 2])
         if c1.button("🔊 " + T("Read aloud", "చదివి వినిపించండి"), width="stretch", key="consent_speak"):
             speak_aloud(consent.speech(lang), lang)

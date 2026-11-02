@@ -43,7 +43,8 @@ DEMO_USERS = [
 ] + [
     # More demo farmers (all with the same demo password)
     {"user_id": fid, "role": "farmer", "farmer_id": fid, "password": "Farmer@123"}
-    for fid in ("TS1001", "TS1003", "TS1004", "TS1005", "TS1006", "TS1007", "TS1008", "TS1009", "TS1010", "TS1011")
+    for fid in ("TS1001", "TS1003", "TS1004", "TS1005", "TS1006", "TS1007", "TS1008", "TS1009", "TS1010", "TS1011",
+                "TS1012", "TS1013", "TS1014", "TS1015")
 ]
 
 _lock = threading.Lock()
@@ -127,6 +128,13 @@ def _load():
     _sync_sessions()
     if USERS_FILE.exists():
         sync_users()
+        # Add demo accounts that are missing (e.g. added to DEMO_USERS after this file was made).
+        # Existing accounts and their passwords are never changed.
+        missing = [d for d in DEMO_USERS if d["user_id"].lower() not in USERS]
+        for d in missing:
+            _create(dict(d), save=False)
+        if missing:
+            _save()
         return
     for d in DEMO_USERS:
         _create(dict(d), save=False)

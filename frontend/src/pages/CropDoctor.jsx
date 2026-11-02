@@ -49,7 +49,8 @@ const METHOD_TE = {
   "Spray directed into the whorl": "సుడిలోకి పిచికారీ",
 };
 
-export default function CropDoctor() {
+export default function CropDoctor({ user }) {
+  const isFarmer = user?.role === "farmer"; // farmers don't pick an AI company; staff can compare
   const { lang, te, tv, tc, terr } = useLang();
   const [crop, setCrop] = useState("");
   const [acres, setAcres] = useState(1);
@@ -121,14 +122,14 @@ export default function CropDoctor() {
               <label>{t.acres}</label>
               <input type="number" min="0.1" max="100" step="0.5" value={acres} onChange={(e) => setAcres(Math.max(0.1, Number(e.target.value) || 1))} />
             </div>
-            <div>
+            {!isFarmer && <div>
               <label>{t.aiModel}</label>
               <div className="seg">
                 <button className={provider === "claude" ? "on" : ""} onClick={() => setProvider("claude")}>Claude</button>
                 <button className={provider === "gpt" ? "on" : ""} onClick={() => setProvider("gpt")}>ChatGPT</button>
                 <button className={provider === "gemini" ? "on" : ""} onClick={() => setProvider("gemini")}>Gemini</button>
               </div>
-            </div>
+            </div>}
           </div>
 
           <MediaPicker items={media} onChange={pick} />

@@ -1206,7 +1206,9 @@ def page_chat(user, embedded=False):
     side, main = st.columns([1, 2.6], gap="medium")
     with side, st.container(key="panel_settings"):
         st.markdown("### " + T("Settings", "సెట్టింగ్‌లు"))
-        provider = seg(T("AI model", "AI మోడల్"), list(MODEL_CHOICES), "chat_model", MODEL_CHOICES)
+        provider = "claude"  # farmers don't pick an AI company (ai.pick uses whichever has a key); staff can compare
+        if user["role"] != "farmer":
+            provider = seg(T("AI model", "AI మోడల్"), list(MODEL_CHOICES), "chat_model", MODEL_CHOICES)
         if user["role"] == "farmer":
             farmer_id = user["farmer_id"]
             st.text_input(T("Logged in as", "లాగిన్ అయిన రైతు ID"), farmer_id, disabled=True)
@@ -1581,7 +1583,9 @@ def page_doctor(user):
         crop = st.selectbox(T("Crop (optional)", "పంట (తప్పనిసరి కాదు)"), [""] + list(data.CROPS),
                             format_func=lambda c: crop_name(c) if c else T("Not sure", "తెలియదు"))
         acres = st.number_input(T("Field size (acres)", "పొలం విస్తీర్ణం (ఎకరాలు)"), 0.1, 100.0, 1.0, 0.5)
-        provider = seg(T("AI model", "AI మోడల్"), list(MODEL_CHOICES), "doctor_model", MODEL_CHOICES)
+        provider = "claude"  # see page_chat: only staff choose the AI model
+        if user["role"] != "farmer":
+            provider = seg(T("AI model", "AI మోడల్"), list(MODEL_CHOICES), "doctor_model", MODEL_CHOICES)
     with top_l, st.container(key="panel_photo"):
         st.markdown("## 🩺 " + T("Crop Doctor", "పంట వైద్యుడు"))
         H('<p class="muted">' + T("Upload photos or videos of the affected plant. You get the problem, why it happens, and exactly "

@@ -71,6 +71,9 @@ CSS = """
         --shadow:0 1px 2px rgba(20,40,25,.06),0 4px 16px rgba(20,40,25,.05); }
 html, body, .stApp, .stApp button, .stApp input, .stApp textarea, .stApp p, .stApp li, .stApp label {
   font-family: Inter, "Noto Sans Telugu", system-ui, sans-serif; }
+/* One font everywhere: Streamlit gives text inside cards (bold names, badges, small notes) its own font */
+.stApp [data-testid="stMarkdownContainer"] :not([data-testid="stIconMaterial"]),
+.stApp h1, .stApp h2, .stApp h3, .stApp h4, .stApp summary p { font-family: Inter, "Noto Sans Telugu", system-ui, sans-serif !important; }
 .stApp p, .stApp li { font-size: 14px; }
 
 /* Remove Streamlit chrome so the page looks like the web app */
@@ -99,11 +102,15 @@ header[data-testid="stHeader"], [data-testid="stSidebar"], [data-testid="stSideb
 .pill.green { background: #c9f2d5; color: #0d4d22; }
 .pill.grey { background: #eceeed; color: #5b625d; }
 .pill.red { background: #ffd6d2; color: #7a1c12; }
-.pay-row { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-top: 1px solid #eef1ec; }
+.pay-row { display: flex; align-items: center; gap: 8px 12px; padding: 10px 0; border-top: 1px solid #eef1ec; flex-wrap: wrap; }
 .pay-icon { font-size: 1.4rem; }
-.pay-main { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+.pay-main { flex: 1 1 150px; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.pay-main b, .side-row .grow b { font-size: 14px; font-weight: 600; line-height: 1.35; }
+.pay-main small, .side-row small { font-size: 12px; line-height: 1.4; }
 .pay-main small { color: #6b7280; }
-.pay-amt { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+.pay-amt { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; margin-left: auto; max-width: 100%; }
+/* status badges may wrap onto two lines instead of running off a narrow screen */
+.pay-amt .pill, .side-row .pill { white-space: normal; text-align: center; max-width: 170px; line-height: 1.35; }
 .pill.soft { background: var(--brand-soft); color: var(--brand-dark); }
 .st-key-topbar [data-testid="stPopover"] button { background: rgba(255,255,255,.12); border-color: rgba(255,255,255,.25); color: #fff; }
 .st-key-topbar [data-testid="stPopover"] button p { color: #fff; font-weight: 600; }
@@ -264,7 +271,7 @@ button[data-variant="segmented_control"][aria-checked="true"] p, button[data-var
 .st-key-svc_side [data-testid="stExpander"] summary::after { content: "›"; margin-left: auto; font-size: 24px; line-height: 1;
   color: var(--muted); transition: transform .2s; }
 .st-key-svc_side [data-testid="stExpander"] details[open] summary::after { transform: rotate(90deg); color: var(--brand); }
-.side-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid #f0f3ef; }
+.side-row { display: flex; align-items: center; gap: 6px 10px; padding: 8px 0; border-bottom: 1px solid #f0f3ef; flex-wrap: wrap; }
 .st-key-svc_side [data-testid="stExpander"] summary > span { justify-content: flex-start; }
 .st-key-svc_side [data-testid="stExpander"] summary [data-testid="stMarkdownContainer"] { text-align: left; }
 .side-row .pill { white-space: normal; text-align: center; max-width: 140px; }
@@ -273,7 +280,7 @@ button[data-variant="segmented_control"][aria-checked="true"] p, button[data-var
   [data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"] .st-key-svc_side) { flex-direction: column; }
   [data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"] .st-key-svc_side) > [data-testid="stColumn"] { width: 100%; flex: 1 1 auto; }
 }
-.side-row .grow { flex: 1; display: flex; flex-direction: column; }
+.side-row .grow { flex: 1 1 150px; min-width: 0; display: flex; flex-direction: column; }
 .st-key-svc_side .weather { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
 .st-key-svc_side .wday { border: 1px solid var(--line); border-radius: 10px; padding: 8px 2px; display: flex; flex-direction: column;
   align-items: center; font-size: 12px; }

@@ -607,7 +607,8 @@ label.check input { width: auto; }
 
 /* ---- Many photos and videos (Crop Doctor, chat) ---- */
 .media-drop.has { cursor: default; padding: 10px; }
-.media-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; width: 100%; }
+.media-grid { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; width: 100%; }
+.media-grid > * { width: 110px; flex: 0 0 110px; }
 .media-thumb { position: relative; aspect-ratio: 1; border-radius: 10px; overflow: hidden; border: 1px solid var(--line); background: #000; }
 .media-thumb img, .media-thumb video { width: 100%; height: 100%; object-fit: cover; display: block; }
 .media-badge { position: absolute; left: 4px; bottom: 4px; font-size: 14px; background: rgba(0,0,0,.55); border-radius: 6px; padding: 0 4px; }
@@ -616,6 +617,6 @@ label.check input { width: auto; }
 .media-add { aspect-ratio: 1; border: 2px dashed var(--line); border-radius: 10px; background: #fafcf9; font-size: 26px;
   color: var(--brand); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; }
 .media-add small { font-size: 12px; }
-.media-count { display: block; margin-top: 6px; text-align: left; }
+.media-count { display: block; margin-top: 6px; text-align: center; }
 .msg-media { display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 6px; margin-bottom: 6px; max-width: 320px; }
 .msg-media img, .msg-media video { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 8px; background: #000; }

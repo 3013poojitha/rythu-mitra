@@ -328,6 +328,23 @@ button[data-variant="segmented_control"][aria-checked="true"] p, button[data-var
 .msg-media img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 8px; display: block; }
 .msg-media .mm span { position: absolute; left: 4px; bottom: 4px; background: rgba(0,0,0,.55); border-radius: 6px; padding: 0 4px; font-size: 13px; }
 .st-key-doc_thumbs { flex-wrap: wrap; }
+[class*="st-key-doc_pic_"] { position: relative; }
+[class*="st-key-doc_pic_"] img, [class*="st-key-doc_pic_"] video { border-radius: 10px; height: 110px; object-fit: cover; }
+[class*="st-key-doc_pic_"] [class*="st-key-doc_rm_"] { position: absolute; top: 4px; right: 4px; width: auto; z-index: 2; }
+[class*="st-key-doc_rm_"] button { min-height: 0; width: 26px; height: 26px; padding: 0; border-radius: 50%;
+  background: rgba(0,0,0,.6) !important; border: none; color: #fff !important; }
+[class*="st-key-doc_rm_"] button p { font-size: 13px !important; color: #fff !important; }
+.st-key-doc_add [data-testid="stFileUploaderDropzone"] { width: 110px; height: 110px; min-height: 0; padding: 0 !important;
+  border: 2px dashed #9bb59f; border-radius: 10px; background: #f6f9f5; justify-content: center; }
+.st-key-doc_add [data-testid="stFileUploaderDropzoneInstructions"] { display: none !important; }
+.st-key-doc_thumbs > *:has(.st-key-doc_add), .st-key-doc_add, .st-key-doc_add * { max-width: 110px; flex: 0 0 auto !important; min-width: 0 !important; }
+.st-key-doc_add [data-testid="stFileUploaderDropzone"] button { background: transparent !important; border: none !important;
+  width: 100%; height: 100%; padding: 0 !important; }
+.st-key-doc_add [data-testid="stFileUploaderDropzone"] button p,
+.st-key-doc_add [data-testid="stFileUploaderDropzone"] button * { font-size: 0 !important; }
+.stApp .st-key-doc_add [data-testid="stFileUploaderDropzone"] button p::after { content: "+"; font-size: 40px !important;
+  font-weight: 300; color: #2e7d32; }
+.st-key-doc_add [data-testid="stFileUploader"] > section + div, .st-key-doc_add [data-testid="stFileUploaderFile"] { display: none; }
 .mic-btn.talk { background: var(--brand); color: #fff; animation: pulse 1.4s infinite; }
 .st-key-quick_row { flex-wrap: wrap; }
 .st-key-quick_row { margin: -4px 0 10px; }
@@ -442,10 +459,10 @@ AUTH_CSS = """
 # Telugu only: Streamlit's photo upload box has fixed English words, so swap them with CSS
 TE_CSS = """
 <style>
-.st-key-crop_photo [data-testid="stFileUploaderDropzoneInstructions"] span { font-size: 0 !important; }
-.st-key-crop_photo [data-testid="stFileUploaderDropzoneInstructions"] span::after { content: "ఫోటో 200MB వరకు · JPG, PNG, WEBP"; font-size: 12px; }
-.st-key-crop_photo [data-testid="stFileUploaderDropzone"] button p { font-size: 0 !important; }
-.st-key-crop_photo [data-testid="stFileUploaderDropzone"] button p::after { content: "ఫోటో పెట్టండి"; font-size: 14px; }
+[class*="st-key-crop_photo"] [data-testid="stFileUploaderDropzoneInstructions"] span { font-size: 0 !important; }
+[class*="st-key-crop_photo"] [data-testid="stFileUploaderDropzoneInstructions"] span::after { content: "ఫోటో 200MB వరకు · JPG, PNG, WEBP"; font-size: 12px; }
+[class*="st-key-crop_photo"] [data-testid="stFileUploaderDropzone"] button p { font-size: 0 !important; }
+[class*="st-key-crop_photo"] [data-testid="stFileUploaderDropzone"] button p::after { content: "ఫోటో పెట్టండి"; font-size: 14px; }
 </style>
 """
 
@@ -1575,6 +1592,33 @@ def dose_te(text):
     return re.sub(r"([\d.]+) tanks", r"\1 ట్యాంకులు", text)
 
 
+class DocFile:
+    """A photo or video kept for Crop Doctor (works like Streamlit's uploaded file for check_media)."""
+    def __init__(self, f, id_):
+        self.id, self.name, self.type, self._data = id_, f.name, f.type, f.getvalue()
+
+    def getvalue(self):
+        return self._data
+
+
+def upload_box():
+    """The upload box; a new key after every upload empties it (the files move to ss.doc_files)."""
+    return st.file_uploader(T("Crop photos and videos", "పంట ఫోటోలు, వీడియోలు"), type=MEDIA_TYPES,
+                            accept_multiple_files=True, label_visibility="collapsed",
+                            key=f"crop_photo_{ss.get('doc_up', 0)}")
+
+
+def add_doc_files(new):
+    if new:
+        ss.doc_up = ss.get("doc_up", 0) + 1
+        ss.doc_files = ss.doc_files + [DocFile(f, f"{ss.doc_up}_{i}") for i, f in enumerate(new)]
+        st.rerun()
+
+
+def remove_doc_file(fid):
+    ss.doc_files = [f for f in ss.doc_files if f.id != fid]
+
+
 def page_doctor(user):
     lang = ss.ui_lang  # the report follows the తెలుగు | English switch
     top_l, top_r = st.columns([1.3, 1], gap="medium")
@@ -1592,17 +1636,27 @@ def page_doctor(user):
                                   "how much to spray for your field.",
                                   "తెగులు సోకిన మొక్క ఫోటోలు లేదా వీడియోలు పెట్టండి. సమస్య ఏమిటి, ఎందుకు వచ్చింది, మీ పొలానికి ఎంత మందు "
                                   "కొట్టాలో చెబుతాము.") + "</p>")
-        ups = st.file_uploader(T("Crop photos and videos", "పంట ఫోటోలు, వీడియోలు"), type=MEDIA_TYPES,
-                               accept_multiple_files=True, label_visibility="collapsed", key="crop_photo")
+        # The chosen pictures are kept here (not in the upload box), so they show as pictures with a ✕ on
+        # each and a ＋ beside them, instead of Streamlit's list of file names
+        ss.setdefault("doc_files", [])
+        if not ss.doc_files:
+            add_doc_files(upload_box())
         st.caption(T("Add as many photos and videos as you like · photos up to 8 MB, videos up to 50 MB",
                      "ఎన్ని ఫోటోలు, వీడియోలు అయినా జోడించవచ్చు · ఫోటో 8 MB, వీడియో 50 MB వరకు"))
+        ups = ss.doc_files
         if ups:
-            with st.container(horizontal=True, gap="small", key="doc_thumbs"):
-                for f in ups:
-                    if media.is_video(f.type, f.name):
-                        st.video(f, width=180)
-                    else:
-                        st.image(f, width=110)
+            with st.container(horizontal=True, horizontal_alignment="center", vertical_alignment="center",
+                              gap="small", key="doc_thumbs"):
+                for i, f in enumerate(ups):
+                    with st.container(key=f"doc_pic_{f.id}", width="content"):
+                        if media.is_video(f.type, f.name):
+                            st.video(f.getvalue(), width=180)
+                        else:
+                            st.image(f.getvalue(), width=110)
+                        st.button("✕", key=f"doc_rm_{f.id}", on_click=remove_doc_file, args=(f.id,),
+                                  help=T("Remove", "తీసేయండి"))
+                with st.container(key="doc_add", width="content"):
+                    add_doc_files(upload_box())
             label = T(f"🔍 Analyse {len(ups)} photo{'s' if len(ups) != 1 else ''} / video{'s' if len(ups) != 1 else ''}",
                       f"🔍 {len(ups)} ఫోటోలు / వీడియోలు పరిశీలించండి")
             if st.button(label, type="primary", width="stretch"):

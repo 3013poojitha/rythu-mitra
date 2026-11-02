@@ -7,6 +7,7 @@ matches the React app: colours in .streamlit/config.toml, layout in CSS below.
 """
 import base64
 import html
+from contextlib import contextmanager
 import inspect
 import io
 import json
@@ -264,16 +265,20 @@ button[data-variant="segmented_control"][aria-checked="true"] p, button[data-var
 .st-key-panel_hist_head button p { font-size: 14px; }
 .st-key-panel_password { max-width: 560px; margin: 24px auto 0; }  /* centred on the page */
 .st-key-svc_side { gap: 10px; }
-.st-key-svc_side [data-testid="stExpander"] details { border-radius: 12px; background: #fff; }
-.st-key-svc_side [data-testid="stExpander"] summary { padding: 14px 14px; }
-.st-key-svc_side [data-testid="stExpander"] summary p { font-weight: 700; font-size: 15px; }
-.st-key-svc_side [data-testid="stExpander"] summary [data-testid="stIconMaterial"] { display: none; }
-.st-key-svc_side [data-testid="stExpander"] summary::after { content: "›"; margin-left: auto; font-size: 24px; line-height: 1;
-  color: var(--muted); transition: transform .2s; }
-.st-key-svc_side [data-testid="stExpander"] details[open] summary::after { transform: rotate(90deg); color: var(--brand); }
+/* Right panel sections (side_section): a white card, a header to tap with › , and the contents */
+.st-key-svc_side [class*="st-key-side_"] { background: #fff; border: 1px solid var(--line); border-radius: 12px; gap: 0; overflow: hidden; }
+.st-key-svc_side [class*="st-key-sidehead_"] button { background: #fff !important; border: 0 !important; border-radius: 0;
+  padding: 14px; min-height: 0; color: var(--ink) !important; box-shadow: none !important; }
+.st-key-svc_side [class*="st-key-sidehead_"] button:hover { background: #f7faf6 !important; }
+.st-key-svc_side [class*="st-key-sidehead_"] button > div { justify-content: flex-start; width: 100%; }
+.st-key-svc_side [class*="st-key-sidehead_"] button p { font-weight: 700; font-size: 15px; text-align: left; color: var(--ink) !important; }
+.st-key-svc_side [class*="st-key-sidehead_"] button::after { content: "›"; margin-left: auto; padding-left: 8px; font-size: 24px;
+  line-height: 1; color: var(--muted); transition: transform .2s; }
+.st-key-svc_side [class*="st-key-sidehead_"] button[kind="primary"]::after,
+.st-key-svc_side [class*="st-key-sidehead_"] [data-testid="stBaseButton-primary"]::after { transform: rotate(90deg); color: var(--brand); }
+.st-key-svc_side [class*="st-key-sidebody_"][class*="_open"] { padding: 4px 14px 14px; border-top: 1px solid var(--line); }
+.st-key-svc_side [class*="st-key-sidebody_"][class*="_shut"] { display: none; }
 .side-row { display: flex; align-items: center; gap: 6px 10px; padding: 8px 0; border-bottom: 1px solid #f0f3ef; flex-wrap: wrap; }
-.st-key-svc_side [data-testid="stExpander"] summary > span { justify-content: flex-start; }
-.st-key-svc_side [data-testid="stExpander"] summary [data-testid="stMarkdownContainer"] { text-align: left; }
 .side-row .pill { white-space: normal; text-align: center; max-width: 140px; }
 /* Below 1000px the right-side rows go under the details and chat, full width */
 @media (max-width: 1000px) {
@@ -1962,6 +1967,23 @@ def apply_scheme(fid):
             st.error(err(e))
 
 
+def toggle_side(sid):
+    ss.side_open = None if ss.get("side_open") == sid else sid
+
+
+@contextmanager
+def side_section(sid, label):
+    """One row of the right panel: a header to tap, and what it contains below it. Only one is
+    open at a time - opening one closes the others (ss.side_open). A closed section's contents are
+    still built but hidden, so its form fields keep what was typed."""
+    open_ = ss.get("side_open") == sid
+    with st.container(key=f"side_{sid}"):
+        st.button(label, key=f"sidehead_{sid}", width="stretch", on_click=toggle_side, args=(sid,),
+                  type="primary" if open_ else "secondary")
+        with st.container(key=f"sidebody_{sid}_{'open' if open_ else 'shut'}"):
+            yield
+
+
 def side_sections(f, fid):
     """Applications, payments, grievances, weather and advisory: one row each (icon, name, a short
     hint and ›). Tapping a row opens what it contains."""
@@ -1969,8 +1991,9 @@ def side_sections(f, fid):
     pill = {"Credited": "green", "Approved": "green", "Resolved": "green", "Escalated": "red"}
     apps = [assistant._app_view(a) for a in f["applications"]]
 
-    with st.expander(f"📋 {T('Scheme applications', 'పథకాల దరఖాస్తులు')}  ·  {len(apps)}",
-                     expanded=bool(ss.get("applied"))):  # stays open to show the new application
+    if ss.get("applied"):
+        ss.side_open = "apps"  # stays open to show the new application
+    with side_section("apps", f"📋 {T('Scheme applications', 'పథకాల దరఖాస్తులు')}  ·  {len(apps)}"):
         H("".join(
             f'<div class="side-row"><span class="grow"><b>{e(a["scheme_te"] if is_te() else a["scheme"])}</b>'
             f'<small class="muted">{a["app_id"]}</small></span><span class="pay-amt">'
@@ -1980,12 +2003,12 @@ def side_sections(f, fid):
         apply_scheme(fid)
 
     credited = sum(a["amount"] for a in apps if a["status"] == "Credited")
-    with st.expander(f"💰 {T('Payment status', 'డబ్బు జమ స్థితి')}  ·  {rupees(credited)}"):
+    with side_section("pay", f"💰 {T('Payment status', 'డబ్బు జమ స్థితి')}  ·  {rupees(credited)}"):
         payments(f)
 
     mine = [g for g in data.GRIEVANCES if g["farmer_id"] == fid]
     still_open = sum(g["status"] != "Resolved" for g in mine)
-    with st.expander(f"📣 {T('Grievances', 'ఫిర్యాదులు')}  ·  {still_open} {T('open', 'పెండింగ్')}"):
+    with side_section("griev", f"📣 {T('Grievances', 'ఫిర్యాదులు')}  ·  {still_open} {T('open', 'పెండింగ్')}"):
         if mine:
             H("".join(
                 f'<div class="side-row"><span class="grow"><b>{g["grievance_id"]}</b> {e(V(g["category"]))}'
@@ -2010,7 +2033,7 @@ def side_sections(f, fid):
                                  f"ఫిర్యాదు {g['grievance_id']} నమోదైంది."))
 
     district = f["district_te"] if is_te() else f["district"]
-    with st.expander(f"🌦️ {T('Weather', 'వాతావరణం')}  ·  {district}"):
+    with side_section("weather", f"🌦️ {T('Weather', 'వాతావరణం')}  ·  {district}"):
         days = []
         for w in data.WEATHER[f["district"]]:
             icon = ("⛈️" if w["condition"] == "Thunderstorm" else "🌧️") if w["rain_mm"] else "☀️" if w["condition"] == "Sunny" else "⛅"
@@ -2021,7 +2044,7 @@ def side_sections(f, fid):
         H(f'<div class="weather">{"".join(days)}</div>')
 
     crops = [c for c in f["crops"] if c in data.ADVISORIES]
-    with st.expander(f"🌱 {T('Advisory', 'సలహాలు')}  ·  {', '.join(crop_name(c) for c in crops)}"):
+    with side_section("advice", f"🌱 {T('Advisory', 'సలహాలు')}  ·  {', '.join(crop_name(c) for c in crops)}"):
         for c in crops:
             st.markdown(f"**{crop_name(c)}**")
             for tip in data.ADVISORIES[c][ss.ui_lang][:3]:

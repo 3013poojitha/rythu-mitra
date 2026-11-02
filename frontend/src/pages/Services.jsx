@@ -16,6 +16,7 @@ export default function Services({ user, refreshUser, waOpen }) {
   const [cats, setCats] = useState([]);
   const [form, setForm] = useState({ category: "", description: "" });
   const [msg, setMsg] = useState(null); // [English, Telugu]
+  const [openSec, setOpenSec] = useState(null); // right panel: only one section open at a time
 
   useEffect(() => {
     api.farmers().then(setFarmers);
@@ -66,7 +67,7 @@ export default function Services({ user, refreshUser, waOpen }) {
 
           {/* Right side: tap a row to open what it contains */}
           <aside className="svc-side">
-            <Section icon="📋" title={t("Scheme applications")} hint={farmer.applications.length}>
+            <Section id="apps" openId={openSec} setOpenId={setOpenSec} icon="📋" title={t("Scheme applications")} hint={farmer.applications.length}>
               {farmer.applications.map((a) => (
                 <div key={a.app_id} className="side-row">
                   <span className="grow"><b>{te && a.scheme_te ? a.scheme_te : a.scheme}</b><small className="muted">{a.app_id}</small></span>
@@ -79,12 +80,12 @@ export default function Services({ user, refreshUser, waOpen }) {
               <ApplyScheme farmer={farmer} onApplied={() => api.farmer(id).then(setFarmer)} />
             </Section>
 
-            <Section icon="💰" title={t("Payment status", "డబ్బు జమ స్థితి")}
+            <Section id="pay" openId={openSec} setOpenId={setOpenSec} icon="💰" title={t("Payment status", "డబ్బు జమ స్థితి")}
                      hint={rupees(farmer.applications.filter((a) => a.status === "Credited").reduce((n, a) => n + a.amount, 0))}>
               <Payments farmer={farmer} />
             </Section>
 
-            <Section icon="📣" title={t("Grievances")}
+            <Section id="griev" openId={openSec} setOpenId={setOpenSec} icon="📣" title={t("Grievances")}
                      hint={`${farmer.grievances.filter((g) => g.status !== "Resolved").length} ${t("open", "పెండింగ్")}`}>
               {farmer.grievances.length ? farmer.grievances.map((g) => (
                 <div key={g.grievance_id} className="row between griev">
@@ -101,7 +102,7 @@ export default function Services({ user, refreshUser, waOpen }) {
               {msg && <div className="success">{t(msg[0], msg[1])}</div>}
             </Section>
 
-            <Section icon="🌦️" title={t("Weather")} hint={te ? farmer.district_te : farmer.district}>
+            <Section id="weather" openId={openSec} setOpenId={setOpenSec} icon="🌦️" title={t("Weather")} hint={te ? farmer.district_te : farmer.district}>
               <div className="weather">
                 {farmer.weather.map((w) => (
                   <div key={w.date} className="wday" title={te ? w.condition_te : w.condition}>
@@ -114,7 +115,7 @@ export default function Services({ user, refreshUser, waOpen }) {
               </div>
             </Section>
 
-            <Section icon="🌱" title={t("Advisory", "సలహాలు")} hint={Object.keys(farmer.advisories).map(tc).join(", ")}>
+            <Section id="advice" openId={openSec} setOpenId={setOpenSec} icon="🌱" title={t("Advisory", "సలహాలు")} hint={Object.keys(farmer.advisories).map(tc).join(", ")}>
               {Object.entries(farmer.advisories).map(([crop, a]) => (
                 <div key={crop}><b>{tc(crop)}</b><ul>{(te && a.te ? a.te : a.en).slice(0, 3).map((l) => <li key={l}>{l}</li>)}</ul></div>
               ))}
@@ -127,8 +128,10 @@ export default function Services({ user, refreshUser, waOpen }) {
 }
 
 // One row on the right: icon, name, a short hint and ›. Tap to open or close what it contains.
-function Section({ icon, title, hint, children }) {
-  const [open, setOpen] = useState(false);
+// Only one is open at a time: opening one closes the other (openId is shared by the panel)
+function Section({ id, openId, setOpenId, icon, title, hint, children }) {
+  const open = openId === id;
+  const setOpen = (o) => setOpenId(o ? id : null);
   return (
     <div className={`side-sec ${open ? "open" : ""}`}>
       <button className="side-head" onClick={() => setOpen(!open)} aria-expanded={open}>

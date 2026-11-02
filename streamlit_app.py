@@ -569,6 +569,7 @@ def pick_lang(key):
     if ss.get(key):
         ss.ui_lang = ss[key]
         ss.save_lang = True
+        ss.stop_voice = True  # stop anything being read aloud in the old language
 
 
 def lang_switch(key):
@@ -830,6 +831,7 @@ def log_out(notice=None):
     ss.clear()
     ss.ui_lang = lang  # the login screen stays in the same language
     ss.logged_out = True  # don't log straight back in from the old cookie
+    ss.stop_voice = True  # stop anything still being read aloud
     if notice:
         ss.notice = notice  # shown on the login screen
     st.rerun()
@@ -1087,7 +1089,7 @@ def today_update(user):
         if c1.button("🔊 " + T("Read aloud", "చదివి వినిపించండి"), width="stretch", key="today_speak"):
             speak_aloud(today.speech(u, lang), lang)
         if c2.button("✅ " + T("Done", "సరే"), type="primary", width="stretch", key="today_done"):
-            page_js("window.rmQuiet && rmQuiet()")
+            ss.stop_voice = True
             st.rerun()
 
     st.dialog("🌾 " + T("Today on your farm", "ఈరోజు మీ పొలంలో"), width="medium")(box)()
@@ -1397,15 +1399,24 @@ def speak_aloud(text, lang):
 
 # rmSay(text, lang, audioUrl, onEnd) / rmQuiet(): read aloud in the app page (see speak_aloud)
 SAY_JS = """
+// The clearest voice the browser has: Telugu needs a real Telugu voice; for English prefer the
+// natural-sounding Microsoft "Online (Natural)" and Google voices, Indian English first.
+window.rmVoice = (lang) => {
+  const vs = window.speechSynthesis ? speechSynthesis.getVoices() : [];
+  if (lang === 'te') return vs.find((v) => (v.lang || '').toLowerCase().startsWith('te'));
+  const score = (v) => (/natural|online/i.test(v.name) ? 8 : 0) + (/google/i.test(v.name) ? 6 : 0)
+    + (/en[-_]in/i.test(v.lang) ? 3 : 0) + (/female|neerja|aria|jenny|zira|samantha/i.test(v.name) ? 1 : 0);
+  return vs.filter((v) => /^en/i.test(v.lang)).sort((a, b) => score(b) - score(a))[0];
+};
 window.rmQuiet = () => { window.speechSynthesis && speechSynthesis.cancel(); if (window.rmAudio) { window.rmAudio.onended = null; window.rmAudio.pause(); window.rmAudio = null; } };
 window.rmSay = (text, lang, url, onEnd) => {
   rmQuiet();
   const done = () => onEnd && onEnd();
   if (url) { const a = new Audio(url); window.rmAudio = a; a.onended = a.onerror = done; a.play().catch(done); return; }
-  const voices = window.speechSynthesis ? speechSynthesis.getVoices() : [];
-  const own = voices.find((v) => (v.lang || '').toLowerCase().startsWith(lang === 'te' ? 'te' : 'en-in'));
+  const own = rmVoice(lang);
   if (!window.speechSynthesis || (lang === 'te' && !own)) return done();  // no Telugu voice: say nothing rather than garble it
   const u = new SpeechSynthesisUtterance(text); u.lang = lang === 'te' ? 'te-IN' : 'en-IN'; if (own) u.voice = own;
+  u.rate = 0.95;  // a little calmer than the default
   u.onend = u.onerror = done; window.rmUtterance = u; speechSynthesis.speak(u);
 };
 """
@@ -2064,11 +2075,11 @@ else {{
             speak_aloud(consent.speech(lang), lang)
         if c2.button("✖ " + t["decline"], width="stretch", key="consent_no"):
             consent.record(user["farmer_id"], False, lang)
-            page_js("window.rmQuiet && rmQuiet()")
+            ss.stop_voice = True
             log_out({"te": consent.TEXT["te"]["declined"], "en": consent.TEXT["en"]["declined"]})
         if c3.button("✅ " + t["agree"], type="primary", width="stretch", key="consent_yes"):
             consent.record(user["farmer_id"], True, lang)
-            page_js("window.rmQuiet && rmQuiet()")
+            ss.stop_voice = True
             st.rerun()
 
 
@@ -2721,6 +2732,8 @@ Settings → Secrets). The real models then write the replies from the same fact
 # ---------------------------------------------------------------------------
 
 H(CSS)
+if ss.pop("stop_voice", False):  # language switched, logged out, or a pop-up closed: stop reading aloud
+    page_js("window.rmQuiet && rmQuiet()")
 init_lang()
 profiles.sync()  # pick up profile edits saved by the React app
 applications.sync()  # and scheme applications made there

@@ -15,6 +15,7 @@ export default function Consent({ farmerId, done, onDecline }) {
   const [info, setInfo] = useState(null);
   const [busy, setBusy] = useState(false);
   const [voice, setVoice] = useState(null); // "preparing" | "speaking" | null
+  useEffect(() => { stopSpeaking(); setVoice(null); }, [lang]); // language switched: stop reading
 
   useEffect(() => {
     if (agreedHere(farmerId)) {  // agreed before on this device: record it again quietly and go on

@@ -1,3 +1,4 @@
+import { stopSpeaking } from "./speech.js";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { api } from "./api.jsx";
 
@@ -110,7 +111,8 @@ export const useLang = () => useContext(LangContext);
 
 // The తెలుగు | English pill, shown in the top bar and on the login card
 export function LangSwitch({ className = "" }) {
-  const { lang, setLang } = useLang();
+  const { lang, setLang: set } = useLang();
+  const setLang = (l) => { if (l !== lang) stopSpeaking(); set(l); }; // stop reading aloud in the old language
   return (
     <div className={`seg lang-switch ${className}`} role="group" aria-label="Language / భాష">
       <button type="button" className={lang === "te" ? "on" : ""} onClick={() => setLang("te")} aria-pressed={lang === "te"}>తెలుగు</button>

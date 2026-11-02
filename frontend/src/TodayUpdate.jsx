@@ -11,6 +11,7 @@ export default function TodayUpdate() {
   const [update, setUpdate] = useState(null);
   const [open, setOpen] = useState(false);
   const [voice, setVoice] = useState(null); // "preparing" | "speaking" | null
+  useEffect(() => { stopSpeaking(); setVoice(null); }, [lang]); // language switched: stop reading
 
   useEffect(() => {
     api.today().then((u) => {

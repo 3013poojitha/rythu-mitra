@@ -1955,8 +1955,8 @@ def page_doctor(user):
                                   help=T("Remove", "తీసేయండి"))
                 with st.container(key="doc_add", width="content"):
                     add_doc_files(upload_box())
-            label = T(f"🔍 Analyse {len(ups)} photo{'s' if len(ups) != 1 else ''} / video{'s' if len(ups) != 1 else ''}",
-                      f"🔍 {len(ups)} ఫోటోలు / వీడియోలు పరిశీలించండి")
+            label = T(f"Analyse {len(ups)} photo{'s' if len(ups) != 1 else ''} / video{'s' if len(ups) != 1 else ''}",
+                      f"{len(ups)} ఫోటోలు / వీడియోలు పరిశీలించండి")
             # The check runs in the background, with ⏹ beside the button: stop it, add another photo, check again
             busy = ss.get("doc_job")
             with st.container(horizontal=True, gap="small", key="doc_go_row"):

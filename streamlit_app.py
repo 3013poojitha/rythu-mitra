@@ -251,6 +251,11 @@ button[data-variant="segmented_control"][aria-checked="true"] p, button[data-var
 [data-testid="stLayoutWrapper"]:has(> .st-key-panel_photo),
 [data-testid="stLayoutWrapper"]:has(> .st-key-panel_doc_settings) { flex: 1 1 auto; display: flex; flex-direction: column; }
 .st-key-panel_photo, .st-key-panel_doc_settings { flex: 1 1 auto; }
+/* Until there is a result, the two cards fill the screen down to the bottom (no empty half page) */
+@media (min-width: 640px) {
+  [data-testid="stMain"]:not(:has(.st-key-panel_result)) [data-testid="stHorizontalBlock"]:has(> * .st-key-panel_photo) {
+    min-height: calc(100vh - 190px); }
+}
 .st-key-panel_photo [data-testid="stElementContainer"]:has([data-testid="stFileUploader"]) { flex: 1 1 auto; display: flex; flex-direction: column; }
 .st-key-panel_photo [data-testid="stFileUploader"] { flex: 1 1 auto; display: flex; flex-direction: column; }
 .st-key-panel_photo [data-testid="stFileUploader"] > *:has([data-testid="stFileUploaderDropzone"]),

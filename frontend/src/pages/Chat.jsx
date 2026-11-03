@@ -150,8 +150,8 @@ export default function Chat({ user, waOpen, embedded = false }) {
           ? `**గుర్తింపు: ${d.name}** (${d.crop}) — నమ్మకం ${Math.round(d.confidence * 100)}%\n\nలక్షణాలు: ${d.symptoms}\n\nనివారణ: ${d.remedy}\n\n📋 పూర్తి మందుల ప్రణాళిక, మోతాదు, భద్రత కోసం "పంట వైద్యుడు" ట్యాబ్ చూడండి.\n⚠️ మందులు వాడే ముందు మీ AEO ని సంప్రదించండి.`
           : `**Detected: ${d.name}** (${d.crop}) — ${Math.round(d.confidence * 100)}% confidence\n\nSymptoms: ${d.symptoms}\n\nRemedy: ${d.remedy}\n\n📋 Open the "Crop Doctor" tab for the full spray plan, quantities for your acres and safety steps.\n⚠️ Please confirm with your AEO before spraying.`;
         const saved = !res.history_id ? "" : isTe
-          ? "\n📜 మీ చరిత్రలో సేవ్ అయింది. మందు వాడిన తర్వాత పైన 🔔 గంటలో ఫలితం, ఫోటో పంపండి."
-          : "\n📜 Saved to your History. After you use the remedy, tell us the result and send a photo from the 🔔 bell at the top.";
+          ? "\nమీ చరిత్రలో సేవ్ అయింది. మందు వాడిన తర్వాత పైన గంటలో ఫలితం, ఫోటో పంపండి."
+          : "\nSaved to your History. After you use the remedy, tell us the result and send a photo from the bell at the top.";
         return text + saved;
       };
       const { media: _counts, ...reply } = res; // "media" in the reply is just the photo/video count

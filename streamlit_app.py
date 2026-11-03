@@ -1698,8 +1698,8 @@ def chat_photo(user, files, lang, provider, box):
                 f"**Detected: {d['name']}** ({d['crop']}) — {round(d['confidence'] * 100)}% confidence\n\nSymptoms: {d['symptoms']}\n\n"
                 f"Remedy: {d['remedy']}\n\n📋 Open the **Crop Doctor** tab for the full spray plan.\n⚠️ Please confirm with your AEO before spraying.")
         if saved:
-            text += ("\n📜 మీ చరిత్రలో సేవ్ అయింది. మందు వాడిన తర్వాత పైన 🔔 గంటలో ఫలితం, ఫోటో పంపండి." if te
-                     else "\n📜 Saved to your History. After you use the remedy, tell us the result and send a photo from the 🔔 bell at the top.")
+            text += ("\nమీ చరిత్రలో సేవ్ అయింది. మందు వాడిన తర్వాత పైన గంటలో ఫలితం, ఫోటో పంపండి." if te
+                     else "\nSaved to your History. After you use the remedy, tell us the result and send a photo from the bell at the top.")
         return text
     ss.chat.append({"role": "bot", "followup": True, "tx": both(reply)})
     ss.speak_next = reply(te)
@@ -1901,8 +1901,8 @@ def page_doctor(user):
         if ss.get("diag_saved"):
             c1, c2 = st.columns([4, 1], vertical_alignment="center")
             c1.markdown('<div class="saved-note">' + T(
-                "📜 Saved to your History. After you use the remedy, tell us the result and send a photo from the 🔔 bell at the top.",
-                "📜 మీ చరిత్రలో సేవ్ అయింది. మందు వాడిన తర్వాత పైన 🔔 గంటలో ఫలితం, ఫోటో పంపండి.") + "</div>",
+                "Saved to your History. After you use the remedy, tell us the result and send a photo from the bell at the top.",
+                "మీ చరిత్రలో సేవ్ అయింది. మందు వాడిన తర్వాత పైన గంటలో ఫలితం, ఫోటో పంపండి.") + "</div>",
                 unsafe_allow_html=True)
             if c2.button("📜 " + T("Open History", "చరిత్ర తెరవండి"), width="stretch"):
                 ss.view = "history"

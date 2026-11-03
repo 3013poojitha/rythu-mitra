@@ -142,7 +142,7 @@ function Section({ id, openId, setOpenId, icon, title, hint, children }) {
   return (
     <div className={`side-sec ${open ? "open" : ""}`}>
       <button className="side-head" onClick={() => setOpen(!open)} aria-expanded={open}>
-        <span className="side-icon">{icon}</span>
+        {/* icons hidden for now (the icon prop is kept, to bring them back later) */}
         <span className="side-title">{title}{hint !== undefined && hint !== "" && <small>{hint}</small>}</span>
         <span className="side-arrow">›</span>
       </button>

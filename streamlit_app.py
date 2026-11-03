@@ -341,6 +341,9 @@ button[data-variant="segmented_control"][aria-checked="true"] p, button[data-var
 .msg-media img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 8px; display: block; }
 .msg-media .mm span { position: absolute; left: 4px; bottom: 4px; background: rgba(0,0,0,.55); border-radius: 6px; padding: 0 4px; font-size: 13px; }
 .st-key-doc_thumbs { flex-wrap: wrap; }
+/* With photos added, they stay in the middle of the card (where the upload box was); the button stays at the bottom */
+[data-testid="stLayoutWrapper"]:has(> .st-key-doc_thumbs) { flex: 1 1 auto; display: flex; flex-direction: column; justify-content: center; }
+.st-key-panel_photo > .st-key-doc_thumbs { flex: 1 1 auto; align-content: center; }
 /* ⏰ Crop Doctor: best time of day to use a remedy, and why */
 .best-time { background: #fff7e0; border-radius: 8px; padding: 6px 8px; margin: 3px 0; }
 .best-time small { display: block; color: #6b5a2b; font-size: 12.5px; line-height: 1.45; margin-top: 2px; }

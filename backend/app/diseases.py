@@ -384,10 +384,117 @@ TREATMENT_TE = {
     "Twice a season": "సీజన్‌కు రెండుసార్లు",
 }
 
+# Best time of day to use each remedy, and why (a spray at the wrong hour can be wasted):
+# group -> (time en, why en, time te, why te). Every spray also gets SPRAY_AVOID.
+TIMES = {
+    "sucking": ("Morning, 7–10 AM, after the dew dries",
+                "Thrips, whiteflies and hoppers are out on the leaves in the cool morning; dew would dilute the "
+                "spray and make it run off, and by midday the heat dries it before the plant takes it in.",
+                "ఉదయం 7–10 గంటలు, మంచు ఆరిన తర్వాత",
+                "చల్లని ఉదయం తామర పురుగు, తెల్లదోమ, దోమలు ఆకులపై బయటే ఉంటాయి; మంచు ఉంటే మందు పలుచనై జారిపోతుంది, "
+                "మధ్యాహ్నం ఎండకు మొక్క పీల్చుకునే లోపే ఆరిపోతుంది."),
+    "light": ("Sunny morning, 8–11 AM",
+              "This medicine is turned into its working form by sunlight, so it works best on a bright, dry morning.",
+              "ఎండ ఉన్న ఉదయం 8–11 గంటలు",
+              "ఈ మందు సూర్యరశ్మితోనే పనిచేసే రూపంలోకి మారుతుంది, అందుకే ఎండ ఉన్న పొడి ఉదయం బాగా పనిచేస్తుంది."),
+    "larvae": ("Evening, 4–6 PM",
+               "Caterpillars and borers come out to feed in the evening and at night, so they meet fresh medicine; "
+               "it also does not dry out or break down in the hot sun.",
+               "సాయంత్రం 4–6 గంటలు",
+               "గొంగళి పురుగులు, తొలుచు పురుగులు సాయంత్రం, రాత్రి తినడానికి బయటకు వస్తాయి, అప్పుడు తాజా మందు తగులుతుంది; "
+               "ఎండకు ఆరిపోదు, పాడవదు."),
+    "uv": ("Evening, 4–6 PM",
+           "Sunlight breaks this medicine down within hours; sprayed in the evening it stays on the leaf all night "
+           "and is safer for bees.",
+           "సాయంత్రం 4–6 గంటలు",
+           "ఎండకు ఈ మందు కొన్ని గంటల్లోనే పాడవుతుంది; సాయంత్రం కొడితే రాత్రంతా ఆకుపై ఉంటుంది, తేనెటీగలకూ సురక్షితం."),
+    "neem": ("Evening, 4–6 PM",
+             "Sunlight breaks neem down quickly, and neem oil in hot sun can scorch the leaves; in the evening it "
+             "lasts longer and does not harm bees.",
+             "సాయంత్రం 4–6 గంటలు",
+             "ఎండకు వేప మందు త్వరగా పాడవుతుంది, వేడి ఎండలో వేప నూనె ఆకులను కాల్చవచ్చు; సాయంత్రం కొడితే ఎక్కువసేపు "
+             "పనిచేస్తుంది, తేనెటీగలకు హాని లేదు."),
+    "bio": ("Evening, after 4 PM",
+            "These are living good microbes: strong sun and heat kill them, while the cool, damp night lets them "
+            "settle on the leaves.",
+            "సాయంత్రం 4 గంటల తర్వాత",
+            "ఇవి మంచి సూక్ష్మజీవులు: ఎండ, వేడి వాటిని చంపుతాయి; చల్లని, తేమ ఉన్న రాత్రి అవి ఆకులపై స్థిరపడతాయి."),
+    "contact": ("Dry morning, 9–11 AM, no rain for 6 hours",
+                "This medicine only protects where it coats the leaf: the leaf must be dry so it sticks, and rain "
+                "soon after washes it off.",
+                "పొడి ఉదయం 9–11 గంటలు, 6 గంటల వరకు వర్షం లేనప్పుడు",
+                "ఈ మందు ఆకుపై పూతలా ఉన్న చోటే కాపాడుతుంది: ఆకు పొడిగా ఉంటేనే అతుక్కుంటుంది, వెంటనే వర్షం పడితే కొట్టుకుపోతుంది."),
+    "systemic": ("Morning, 8–11 AM, after the dew dries",
+                 "Leaves take this medicine in while they are active in the morning; it needs about 4 dry hours to "
+                 "soak in before rain or evening dew.",
+                 "ఉదయం 8–11 గంటలు, మంచు ఆరిన తర్వాత",
+                 "ఉదయం ఆకులు చురుకుగా ఉన్నప్పుడు మందును లోపలికి తీసుకుంటాయి; వర్షం లేదా సాయంత్రం మంచు ముందు "
+                 "లోపలికి ఇంకడానికి సుమారు 4 పొడి గంటలు కావాలి."),
+    "drench": ("Evening, on moist soil",
+               "Less water is lost to the sun in the evening, and the roots take the medicine in through the night; "
+               "the soil should be moist, not flooded.",
+               "సాయంత్రం, నేల తడిగా ఉన్నప్పుడు",
+               "సాయంత్రం ఎండకు నీరు ఆవిరి కాదు, రాత్రంతా వేర్లు మందును పీల్చుకుంటాయి; నేల తడిగా ఉండాలి, నీరు నిలవకూడదు."),
+    "soil_bio": ("Evening, on moist soil",
+                 "The good fungus dies in hot sun; mixed into moist soil in the evening and covered, it spreads to the roots.",
+                 "సాయంత్రం, నేల తడిగా ఉన్నప్పుడు",
+                 "ఎండకు మంచి శిలీంధ్రం చనిపోతుంది; సాయంత్రం తడి నేలలో కలిపి మట్టి కప్పితే వేర్ల వరకు వ్యాపిస్తుంది."),
+    "granules": ("Morning, with 3–5 cm water standing in the field",
+                 "The granules dissolve in the standing water and the plants take the medicine up; keep the water "
+                 "and do not drain the field for 3–4 days.",
+                 "ఉదయం, పొలంలో 3–5 సెం.మీ. నీరు నిలిచి ఉన్నప్పుడు",
+                 "గుళికలు నిలువ నీటిలో కరిగి మొక్కలు మందును పీల్చుకుంటాయి; 3–4 రోజులు నీరు తీయకుండా ఉంచండి."),
+    "whorl": ("Morning, after the dew dries",
+              "The mixture sticks inside a dry whorl, where the worm is hiding; wet leaves wash it away.",
+              "ఉదయం, మంచు ఆరిన తర్వాత",
+              "పొడిగా ఉన్న సుడిలో మిశ్రమం అతుక్కుంటుంది, పురుగు అక్కడే దాగి ఉంటుంది; తడి ఆకులకు అది జారిపోతుంది."),
+    "moth_trap": ("Set up in the evening; check every morning",
+                  "The moths fly at night, so the trap must be ready by dusk; count the catch each morning and change "
+                  "the lure on time.",
+                  "సాయంత్రం పెట్టండి; ప్రతి ఉదయం చూడండి",
+                  "రెక్కల పురుగులు రాత్రి ఎగురుతాయి, చీకటి పడేలోపు బుట్ట సిద్ధంగా ఉండాలి; ప్రతి ఉదయం పడినవి లెక్కించండి, "
+                  "సమయానికి ఎర మార్చండి."),
+    "sticky": ("Any time of day; check every 2–3 days",
+               "Nothing is sprayed; the colour attracts the insects all day. Replace the card when it is full or dusty.",
+               "రోజులో ఎప్పుడైనా; 2–3 రోజులకు ఒకసారి చూడండి",
+               "ఏమీ పిచికారీ చేయనవసరం లేదు; రంగు రోజంతా పురుగులను ఆకర్షిస్తుంది. అట్ట నిండినా, దుమ్ము పట్టినా మార్చండి."),
+}
+SPRAY_AVOID = ("Never spray in the hot afternoon (12–3 PM), in wind, or when rain is expected within 4–6 hours.",
+               "మధ్యాహ్నం ఎండలో (12–3), గాలి ఉన్నప్పుడు, 4–6 గంటల్లో వర్షం వచ్చేలా ఉంటే పిచికారీ చేయవద్దు.")
+TIME_GROUP = {
+    "Fipronil 5 SC": "sucking", "Spinetoram 11.7 SC": "sucking", "Flonicamid 50 WG": "sucking",
+    "Pymetrozine 50 WG": "sucking", "Dinotefuran 20 SG": "sucking", "Diafenthiuron 50 WP": "light",
+    "Chlorantraniliprole 18.5 SC": "larvae", "Indoxacarb 14.5 SC": "larvae", "Profenofos 50 EC": "larvae",
+    "Emamectin benzoate 5 SG": "uv",
+    "Neem oil 1500 ppm": "neem", "Neem Seed Kernel Extract (NSKE) 5%": "neem",
+    "Pseudomonas fluorescens 1.5% WP": "bio",
+    "Mancozeb 75 WP": "contact",
+    "Azoxystrobin 23 SC": "systemic", "Hexaconazole 5 EC": "systemic", "Isoprothiolane 40 EC": "systemic",
+    "Propiconazole 25 EC": "systemic", "Tebuconazole 25.9 EC": "systemic", "Tricyclazole 75 WP": "systemic",
+    "Copper oxychloride 50 WP": "drench", "Metalaxyl 8% + Mancozeb 64% WP": "drench",
+    "Trichoderma viride (mixed with 100 kg farmyard manure)": "soil_bio",
+    "Cartap hydrochloride 4G (granules)": "granules", "Sand + lime mixture (9:1)": "whorl",
+    "Pheromone traps (Gossyplure)": "moth_trap", "Pheromone traps (Scirpophaga lure)": "moth_trap",
+    "Blue sticky traps": "sticky", "Yellow sticky traps": "sticky",
+}
+
+
+def best_time(t):
+    """(time, why, time_te, why_te) for one remedy; spraying remedies also get SPRAY_AVOID."""
+    group = TIME_GROUP.get(t["product"])
+    if not group:  # a remedy added later without a group: by how it is used
+        group = "drench" if "soil" in t["method"].lower() else "neem" if t["kind"] == "Organic" else "systemic"
+    when, why, when_te, why_te = TIMES[group]
+    if "spray" in t["method"].lower() or group == "drench":
+        why, why_te = f"{why} {SPRAY_AVOID[0]}", f"{why_te} {SPRAY_AVOID[1]}"
+    return when, why, when_te, why_te
+
+
 for _d in DISEASES:
     for _t in _d["treatments"]:
         for _k in ("reason", "when", "repeat"):
             _t[f"{_k}_te"] = TREATMENT_TE.get(_t[_k], _t[_k])
+        _t["time"], _t["time_why"], _t["time_te"], _t["time_why_te"] = best_time(_t)
 
 
 def search(query):

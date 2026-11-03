@@ -77,6 +77,7 @@ function ReminderCard({ r, onDone, onStop }) {
       <div className="rem-what">{w.what}</div>
       <div className="rem-med">💊 {w.medicine}</div>
       {w.dose && <div className="rem-dose">{w.dose}</div>}
+      <div className="rem-time">⏰ {w.time}</div>
       <div className="rem-rule">{w.rule}</div>
       {w.notes.map((n) => <div key={n} className="rem-note">{n}</div>)}
       <div className="row gap-sm wrap">

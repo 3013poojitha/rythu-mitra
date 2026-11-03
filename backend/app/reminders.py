@@ -117,6 +117,7 @@ def for_farmer(farmer_id, today=None):
                 "what": f"{crop_te} — {rec['disease_te']}",
                 "medicine": terms.medicine(t["product"], True),
                 "dose": "" if r["lure"] else _dose(t, True),
+                "time": f"సరైన సమయం: {t['time_te']}",
                 "rule": (f"{every_te} రోజుల తర్వాత మరోసారి" if r["times"] == 2 else f"ప్రతి {every_te} రోజులకు")
                         + (" · ఇదే చివరి సారి" if n == r["times"] else f" · ఇది {n}వ సారి (మొత్తం {r['times']} సార్లు)"),
                 "notes": notes_te,
@@ -127,6 +128,7 @@ def for_farmer(farmer_id, today=None):
                 "what": f"{crop_en} — {rec['disease']}",
                 "medicine": t["product"],
                 "dose": "" if r["lure"] else _dose(t, False),
+                "time": f"Best time: {t['time']}",
                 "rule": (f"Once more after {every_te} days" if r["times"] == 2
                          else f"Every {every_te} days") + (" · the last one" if n == r["times"] else f" · {_ordinal(n)} of {r['times']}"),
                 "notes": notes_en,
@@ -143,4 +145,4 @@ def due_count(farmer_id):
 def speech(r, lang):
     """One reminder as plain text to read aloud."""
     w = r[lang]
-    return ". ".join(x for x in [w["title"], w["when"], w["what"], w["medicine"], w["dose"], w["rule"], *w["notes"]] if x)
+    return ". ".join(x for x in [w["title"], w["when"], w["what"], w["medicine"], w["dose"], w["time"], w["rule"], *w["notes"]] if x)

@@ -332,6 +332,9 @@ button[data-variant="segmented_control"][aria-checked="true"] p, button[data-var
 .msg-media img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 8px; display: block; }
 .msg-media .mm span { position: absolute; left: 4px; bottom: 4px; background: rgba(0,0,0,.55); border-radius: 6px; padding: 0 4px; font-size: 13px; }
 .st-key-doc_thumbs { flex-wrap: wrap; }
+/* ⏰ Crop Doctor: best time of day to use a remedy, and why */
+.best-time { background: #fff7e0; border-radius: 8px; padding: 6px 8px; margin: 3px 0; }
+.best-time small { display: block; color: #6b5a2b; font-size: 12.5px; line-height: 1.45; margin-top: 2px; }
 /* 🔄 Advisory: what to grow next */
 .nc-title { font-weight: 700; margin: 10px 0 6px; color: #1b5e20; }
 .nc-card { border: 1px solid #e1e8df; border-radius: 12px; padding: 10px 12px; margin-bottom: 10px; background: #fbfdfb; font-size: 14px; }
@@ -356,6 +359,7 @@ button[data-variant="segmented_control"][aria-checked="true"] p, button[data-var
 .rem-med { font-weight: 600; }
 .rem-dose { background: #eef7f0; border-radius: 8px; padding: 4px 8px; }
 .rem-rule { color: #6b7a6e; font-size: 13px; }
+.rem-time { color: #6b5a2b; font-size: 13px; font-weight: 600; }
 .rem-note { color: #9a6700; font-size: 13px; }
 [class*="st-key-remb_"] { flex-wrap: wrap; }
 /* 🔊 Read aloud on page blocks, and the floating ⏸ ⏹ bar while it reads */
@@ -1230,6 +1234,7 @@ def reminder_card(user, r):
           f'<span class="rem-when">{e(w["when"])}</span></div>'
           f'<div class="rem-what">{e(w["what"])}</div><div class="rem-med">💊 {e(w["medicine"])}</div>'
           + (f'<div class="rem-dose">{e(w["dose"])}</div>' if w["dose"] else "")
+          + f'<div class="rem-time">⏰ {e(w["time"])}</div>'
           + f'<div class="rem-rule">{e(w["rule"])}</div>{notes}</div>')
         read_btn(reminders.speech(r, ss.ui_lang), f"rem_{r['id']}")
         with st.container(horizontal=True, gap="small", key=f"remb_{r['id']}"):
@@ -2064,6 +2069,7 @@ def report(d, acres, lang, confidence=None, key="report", slot=None):
 <div class="t-name">{icon} {terms.medicine(t['product'], is_te())}</div><span class="pill {'soft' if t['kind'] == 'Organic' else 'grey'}">{V(t['kind'])}{best}</span>
 <div class="qty">{qty}</div>
 <div><b>{T("Why:", "ఎందుకు:")}</b> {tr(t, 'reason')}</div><div><b>{T("When:", "ఎప్పుడు:")}</b> {tr(t, 'when')}</div>
+<div class="best-time"><b>⏰ {T("Best time:", "సరైన సమయం:")}</b> {tr(t, 'time')}<small>{tr(t, 'time_why')}</small></div>
 <div><b>{T("Repeat:", "మళ్లీ:")}</b> {tr(t, 'repeat')}</div>
 <div><b>{T("How:", "ఎలా:")}</b> {tr(t, 'method')}</div>{phi}</div>""")
     plan = (f"<h3>{'మందుల ప్రణాళిక' if te else 'Treatment plan'} — {acres:g} {'ఎకరాలు' if te else 'acres'}</h3>"

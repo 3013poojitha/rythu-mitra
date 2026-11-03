@@ -286,6 +286,7 @@ function Treatment({ x, t, te, acres, tank, first }) {
       </div>
       <div className="small"><b>{t.method}:</b> {method}</div>
       <div className="small"><b>{t.when}:</b> {f("when")}</div>
+      <div className="small best-time"><b>⏰ {te ? "సరైన సమయం" : "Best time"}:</b> {f("time")}<small>{f("time_why")}</small></div>
       <div className="small"><b>{t.repeat}:</b> {f("repeat")}</div>
       {x.phi_days && <div className="small"><b>{t.phi}:</b> {x.phi_days} {t.days}</div>}
     </div>

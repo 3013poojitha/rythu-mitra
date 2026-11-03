@@ -1197,7 +1197,9 @@ def bell_item(user, rec):
         st.markdown(fu_intro(rec, te).replace("\n", "  \n"))  # keep the line break
         if state["step"] != "photo":
             question, options = fu_step(state["step"], rec, te)
-            read_btn(plain(fu_intro(rec, te) + "\n" + question + "\n" + ", ".join(label for _, label in options)),
+            # 🔊 the opening lines only with the first question; after that just this question and its answers
+            intro = fu_intro(rec, te) + "\n" if state["step"] == "used" else ""
+            read_btn(plain(intro + question + "\n" + ", ".join(label for _, label in options)),
                      f"bell_{rec['id']}_{state['step']}")
             st.markdown(f"**{question}**")
             with st.container(horizontal=True, gap="small", key=f"bellr_{rec['id']}"):

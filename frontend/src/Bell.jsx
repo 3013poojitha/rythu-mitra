@@ -99,11 +99,12 @@ function RemedyQuestions({ rec, onSaved }) {
   return (
     <div className={`bell-item ${state === "saved" ? "saved" : ""}`} data-read>
       <ReadAloud />
-      <div className="bell-intro">{fu.intro(rec, te, tc, tm).split("\n").map((l, i) => <div key={i}>{bold(l)}</div>)}</div>
+      {/* 🔊 reads the opening lines only with the first question; after that just this question and its answers */}
+      <div className={`bell-intro ${step === "used" ? "" : "no-read"}`}>{fu.intro(rec, te, tc, tm).split("\n").map((l, i) => <div key={i}>{bold(l)}</div>)}</div>
       {q && (
         <>
           <b className="bell-q">{q.question}</b>
-          <div className="fu-replies">
+          <div className="fu-replies" data-say={q.options.map((o) => o.label).join(", ")}>
             {q.options.map((o) => <button key={`${step}-${o.value}`} onClick={() => answer(o)}>{o.label}</button>)}
           </div>
         </>

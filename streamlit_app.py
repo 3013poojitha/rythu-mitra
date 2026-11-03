@@ -2372,6 +2372,20 @@ def side_sections(f, fid):
     pill = {"Credited": "green", "Approved": "green", "Resolved": "green", "Escalated": "red"}
     apps = [assistant._app_view(a) for a in f["applications"]]
 
+    # Advisory first: what to do on the farm now and what to grow next
+    crops = [c for c in f["crops"] if c in data.ADVISORIES]
+    plans = next_crop.for_farmer(fid)
+    with side_section("advice", f"🌱 {T('Advisory', 'సలహాలు')}  ·  {', '.join(crop_name(c) for c in crops)}"):
+        read_btn(T("Advisory. ", "సలహాలు. ") + ". ".join(
+            f"{crop_name(c)}: " + ". ".join(data.ADVISORIES[c][ss.ui_lang][:3]) for c in crops)
+            + ". " + next_crop.speech(plans, ss.ui_lang), "advice")
+        for c in crops:
+            st.markdown(f"**{crop_name(c)}**")
+            for tip in data.ADVISORIES[c][ss.ui_lang][:3]:
+                st.markdown(f"- {tip}")
+        if plans:
+            next_crops(plans)
+
     if ss.get("applied"):
         ss.side_open = "apps"  # stays open to show the new application
     with side_section("apps", f"📋 {T('Scheme applications', 'పథకాల దరఖాస్తులు')}  ·  {len(apps)}"):
@@ -2437,19 +2451,6 @@ def side_sections(f, fid):
             days.append(f'<div class="wday" title="{e(w["condition_te"] if is_te() else w["condition"])}"><small>{day_label(d)}</small>'
                         f'<div class="wicon">{icon}</div><b>{w["max_c"]}°</b><small>{w["min_c"]}°</small>{rain}</div>')
         H(f'<div class="weather">{"".join(days)}</div>')
-
-    crops = [c for c in f["crops"] if c in data.ADVISORIES]
-    plans = next_crop.for_farmer(fid)
-    with side_section("advice", f"🌱 {T('Advisory', 'సలహాలు')}  ·  {', '.join(crop_name(c) for c in crops)}"):
-        read_btn(T("Advisory. ", "సలహాలు. ") + ". ".join(
-            f"{crop_name(c)}: " + ". ".join(data.ADVISORIES[c][ss.ui_lang][:3]) for c in crops)
-            + ". " + next_crop.speech(plans, ss.ui_lang), "advice")
-        for c in crops:
-            st.markdown(f"**{crop_name(c)}**")
-            for tip in data.ADVISORIES[c][ss.ui_lang][:3]:
-                st.markdown(f"- {tip}")
-        if plans:
-            next_crops(plans)
 
 
 def next_crops(plans):

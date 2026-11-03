@@ -68,6 +68,13 @@ export default function Services({ user, refreshUser, waOpen }) {
 
           {/* Right side: tap a row to open what it contains */}
           <aside className="svc-side">
+            <Section id="advice" openId={openSec} setOpenId={setOpenSec} icon="🌱" title={t("Advisory", "సలహాలు")} hint={Object.keys(farmer.advisories).map(tc).join(", ")}>
+              {Object.entries(farmer.advisories).map(([crop, a]) => (
+                <div key={crop}><b>{tc(crop)}</b><ul>{(te && a.te ? a.te : a.en).slice(0, 3).map((l) => <li key={l}>{l}</li>)}</ul></div>
+              ))}
+              {farmer.next_crops?.length > 0 && <NextCrops plans={farmer.next_crops} />}
+            </Section>
+
             <Section id="apps" openId={openSec} setOpenId={setOpenSec} icon="📋" title={t("Scheme applications")} hint={farmer.applications.length}>
               {farmer.applications.map((a) => (
                 <div key={a.app_id} className="side-row">
@@ -118,12 +125,6 @@ export default function Services({ user, refreshUser, waOpen }) {
               </div>
             </Section>
 
-            <Section id="advice" openId={openSec} setOpenId={setOpenSec} icon="🌱" title={t("Advisory", "సలహాలు")} hint={Object.keys(farmer.advisories).map(tc).join(", ")}>
-              {Object.entries(farmer.advisories).map(([crop, a]) => (
-                <div key={crop}><b>{tc(crop)}</b><ul>{(te && a.te ? a.te : a.en).slice(0, 3).map((l) => <li key={l}>{l}</li>)}</ul></div>
-              ))}
-              {farmer.next_crops?.length > 0 && <NextCrops plans={farmer.next_crops} />}
-            </Section>
           </aside>
         </div>
       )}

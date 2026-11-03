@@ -247,9 +247,10 @@ button[data-variant="segmented_control"][aria-checked="true"] p, button[data-var
 [data-testid="stChatInput"] textarea { padding-right: 44px !important; }
 .mic-btn { position: absolute; right: 67px; top: 50%; transform: translateY(-50%); width: 34px; height: 34px; border-radius: 50%; border: 0; background: var(--brand-soft); color: var(--brand); display: flex; align-items: center; justify-content: center; padding: 0; cursor: pointer; z-index: 5; }
 .mic-btn.rec { background: #c53b32; color: #fff; }
-/* Crop Doctor: the photo box reaches down to the bottom of "Your field", the upload area fills it */
-[data-testid="stLayoutWrapper"]:has(> .st-key-panel_photo) { flex: 1 1 auto; display: flex; flex-direction: column; }
-.st-key-panel_photo { flex: 1 1 auto; }
+/* Crop Doctor: the photo box and "Your field" are the same height (whichever is taller sets it), the upload area fills it */
+[data-testid="stLayoutWrapper"]:has(> .st-key-panel_photo),
+[data-testid="stLayoutWrapper"]:has(> .st-key-panel_doc_settings) { flex: 1 1 auto; display: flex; flex-direction: column; }
+.st-key-panel_photo, .st-key-panel_doc_settings { flex: 1 1 auto; }
 .st-key-panel_photo [data-testid="stElementContainer"]:has([data-testid="stFileUploader"]) { flex: 1 1 auto; display: flex; flex-direction: column; }
 .st-key-panel_photo [data-testid="stFileUploader"] { flex: 1 1 auto; display: flex; flex-direction: column; }
 .st-key-panel_photo [data-testid="stFileUploader"] > *:has([data-testid="stFileUploaderDropzone"]),

@@ -88,8 +88,7 @@ export default function Services({ user, refreshUser, waOpen }) {
               <ApplyScheme farmer={farmer} onApplied={() => api.farmer(id).then(setFarmer)} />
             </Section>
 
-            <Section id="pay" openId={openSec} setOpenId={setOpenSec} icon="💰" title={t("Payment status", "డబ్బు జమ స్థితి")}
-                     hint={rupees(farmer.applications.filter((a) => a.status === "Credited").reduce((n, a) => n + a.amount, 0))}>
+            <Section id="pay" openId={openSec} setOpenId={setOpenSec} icon="💰" title={t("Payment status", "డబ్బు జమ స్థితి")}>
               <Payments farmer={farmer} />
             </Section>
 

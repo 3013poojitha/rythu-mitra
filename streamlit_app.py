@@ -2415,8 +2415,7 @@ def side_sections(f, fid):
 
         apply_scheme(fid)
 
-    credited = sum(a["amount"] for a in apps if a["status"] == "Credited")
-    with side_section("pay", f"💰 {T('Payment status', 'డబ్బు జమ స్థితి')}  ·  {rupees(credited)}"):
+    with side_section("pay", f"💰 {T('Payment status', 'డబ్బు జమ స్థితి')}"):
         payments(f, read=True)
 
     mine = [g for g in data.GRIEVANCES if g["farmer_id"] == fid]

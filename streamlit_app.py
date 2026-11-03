@@ -2296,7 +2296,7 @@ def farm_edit(f, farmer_view, setup=False):
         st.caption(T(f"Total: {total:g} acres", f"మొత్తం: {total:g} ఎకరాలు"))
 
         b1, b2, _ = st.columns([1.3, 1, 2.7])
-        save_label = ("✅ " + T("Save and start", "సేవ్ చేసి మొదలుపెట్టండి")) if setup else ("💾 " + T("Save changes", "మార్పులు సేవ్ చేయండి"))
+        save_label = ("✅ " + T("Save and start", "సేవ్ చేసి మొదలుపెట్టండి")) if setup else T("Save changes", "మార్పులు సేవ్ చేయండి")
         if b1.button(save_label, type="primary", width="stretch", key=f"save_{fid}"):
             try:
                 profiles.update(fid, {"name": name, "village": village, "district": district,
@@ -2727,7 +2727,7 @@ def page_password(user):
             n1 = st.text_input(T("New password", "కొత్త పాస్‌వర్డ్"), type="password")
             n2 = st.text_input(T("Confirm new password", "కొత్త పాస్‌వర్డ్ మళ్లీ రాయండి"), type="password")
             with st.container(horizontal=True, gap="small"):
-                save = st.form_submit_button("💾 " + T("Save", "సేవ్ చేయండి"), type="primary")
+                save = st.form_submit_button(T("Save", "సేవ్ చేయండి"), type="primary")
                 st.form_submit_button("🏠 " + T("Back to main page", "ముఖ్య పేజీకి వెళ్ళండి"), on_click=go_home)
             if save:
                 try:

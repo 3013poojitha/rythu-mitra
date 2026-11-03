@@ -270,7 +270,7 @@ function ChangePassword({ goHome }) {
             <PasswordInput value={f.confirm} onChange={set("confirm")} show={show} setShow={setShow} autoComplete="new-password" />
             {error && <div className="error">{terr(error)}</div>}
             <div className="row gap-sm">
-              <button className="primary">💾 {t("Save")}</button>
+              <button className="primary">{t("Save")}</button>
               <button type="button" onClick={goHome}>🏠 {t("Back to main page", "ముఖ్య పేజీకి వెళ్ళండి")}</button>
             </div>
           </>

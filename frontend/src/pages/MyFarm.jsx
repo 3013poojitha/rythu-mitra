@@ -178,7 +178,7 @@ export default function MyFarm({ farmer, isFarmer, onSaved, view = "full", onBac
         <div className="row end">
           {!setup && <button onClick={() => setEditing(false)} disabled={busy}>{t("Cancel")}</button>}
           <button className="primary" onClick={save} disabled={busy}>
-            {busy ? t("Saving…", "సేవ్ అవుతోంది…") : setup ? `✅ ${t("Save and start", "సేవ్ చేసి మొదలుపెట్టండి")}` : `💾 ${t("Save changes")}`}
+            {busy ? t("Saving…", "సేవ్ అవుతోంది…") : setup ? `✅ ${t("Save and start", "సేవ్ చేసి మొదలుపెట్టండి")}` : t("Save changes")}
           </button>
         </div>
       </div>

@@ -16,7 +16,7 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse  # noqa: 
 from fastapi.staticfiles import StaticFiles  # noqa: E402
 from pydantic import BaseModel  # noqa: E402
 
-from . import ai, applications, assistant, auth, consent, data, diseases, history, media, pipeline, profiles, report, seasons, terms, today  # noqa: E402
+from . import ai, applications, assistant, auth, consent, data, diseases, history, media, pipeline, profiles, reminders, report, seasons, terms, today  # noqa: E402
 
 app = FastAPI(title="Telangana Bharat Vistaar - Rythu Mitra API")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
@@ -449,6 +449,34 @@ def history_feedback(record_id: str, body: FeedbackIn, request: Request):
         return history.save_feedback(record_id, _user(request), body.model_dump())
     except history.HistoryError as e:
         raise HTTPException(400, str(e))
+
+
+# ---- Spray reminders (🔔 bell): when a remedy has to be sprayed again ----
+
+@app.get("/api/reminders")
+def spray_reminders(request: Request):
+    u = _user(request)
+    if u["role"] != "farmer":
+        return {"reminders": []}
+    return {"reminders": reminders.for_farmer(u["farmer_id"])}
+
+
+@app.post("/api/reminders/{record_id}/sprayed")
+def reminder_sprayed(record_id: str, request: Request):
+    try:
+        history.mark_sprayed(record_id, _user(request))
+    except history.HistoryError as e:
+        raise HTTPException(400, str(e))
+    return spray_reminders(request)
+
+
+@app.post("/api/reminders/{record_id}/stop")
+def reminder_stop(record_id: str, request: Request):
+    try:
+        history.stop_reminders(record_id, _user(request))
+    except history.HistoryError as e:
+        raise HTTPException(400, str(e))
+    return spray_reminders(request)
 
 
 @app.post("/api/history/{record_id}/photo")

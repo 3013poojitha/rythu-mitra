@@ -640,3 +640,21 @@ label.check input { width: auto; }
   padding: 6px 10px 6px 16px; box-shadow: 0 6px 20px rgba(0,0,0,.15); }
 .voice-float b { color: var(--brand-dark); font-size: 14px; white-space: nowrap; }
 .voice-float .voice-icon { width: 36px; height: 32px; padding: 0; font-size: 15px; }
+
+/* ⏰ Spray reminders in the 🔔 bell */
+.bell-sub { padding: 8px 14px 2px; font-weight: 700; font-size: 13px; color: var(--muted); }
+.rem-saved { margin: 8px 14px 0; }
+.rem-card { gap: 3px; border-left: 4px solid #cfe3d3; }
+.rem-card.soon { border-left-color: #e3b341; }
+.rem-card.due { border-left-color: #c53b32; }
+.rem-top { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.rem-top b { font-size: 15px; }
+.rem-when { font-weight: 700; color: var(--brand-dark); white-space: nowrap; }
+.rem-card.soon .rem-when { color: #9a6700; }
+.rem-card.due .rem-when { color: #c53b32; }
+.rem-what { color: var(--muted); }
+.rem-med { font-weight: 600; }
+.rem-dose { background: #eef7f0; border-radius: 8px; padding: 4px 8px; }
+.rem-rule { color: var(--muted); font-size: 13px; }
+.rem-note { color: #9a6700; font-size: 13px; }
+.rem-card .read-btn { margin: 0; }

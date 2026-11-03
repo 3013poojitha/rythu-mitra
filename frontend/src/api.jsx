@@ -99,6 +99,9 @@ export const api = {
   deleteSeason: (fid, id) => request(`/seasons/${fid}/${id}`, { method: "DELETE" }),
   historyFeedback: (id, data) => request(`/history/${id}/feedback`, json("POST", data)),
   historyPhoto: (id, form) => request(`/history/${id}/photo`, { method: "POST", body: form }),
+  reminders: () => request("/reminders"),
+  reminderSprayed: (id) => request(`/reminders/${id}/sprayed`, { method: "POST" }),
+  reminderStop: (id) => request(`/reminders/${id}/stop`, { method: "POST" }),
   dashboard: () => request("/dashboard"),
 };
 

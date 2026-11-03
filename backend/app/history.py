@@ -192,3 +192,37 @@ def save_feedback(record_id, user, body):
         rec["feedback"] = fb
         data.write_json(HISTORY_FILE, rows)
     return rec
+
+
+def _own(rows, record_id, user):
+    rec = next((r for r in rows if r["id"] == record_id), None)
+    if not rec:
+        raise HistoryError("History entry not found.")
+    if user["role"] == "farmer" and rec["farmer_id"] != user["farmer_id"]:
+        raise HistoryError("You can only update your own history.")
+    return rec
+
+
+def mark_sprayed(record_id, user, on=None):
+    """Spray reminder: "I sprayed" - the next reminder counts from this day (today unless given)."""
+    on = (on or date.today()).isoformat()
+    with _lock:
+        rows = _read()
+        rec = _own(rows, record_id, user)
+        fb = rec.get("feedback") or {}
+        sprays = rec.get("sprays") or ([fb["applied_on"]] if fb.get("applied_on") else [])
+        if on not in sprays:
+            sprays.append(on)
+        rec["sprays"] = sorted(sprays)
+        data.write_json(HISTORY_FILE, rows)
+    return rec
+
+
+def stop_reminders(record_id, user):
+    """Spray reminder: "No more reminders" for this problem."""
+    with _lock:
+        rows = _read()
+        rec = _own(rows, record_id, user)
+        rec["reminder_off"] = True
+        data.write_json(HISTORY_FILE, rows)
+    return rec

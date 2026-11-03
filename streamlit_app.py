@@ -55,7 +55,7 @@ _code_stamp = max(p.stat().st_mtime for p in (ROOT / "backend" / "app").glob("*.
 if "app" in sys.modules and getattr(sys.modules["app"], "_code_stamp", None) != _code_stamp:
     for _name in [m for m in sys.modules if m == "app" or m.startswith("app.")]:
         del sys.modules[_name]
-from app import ai, applications, assistant, auth, consent, data, diseases, history, media, pipeline, profiles, seasons, terms, today  # noqa: E402
+from app import ai, applications, assistant, auth, consent, data, diseases, history, media, pipeline, profiles, reminders, seasons, terms, today  # noqa: E402
 from app import report as farm_report  # noqa: E402  (this file has its own report() for Crop Doctor)
 sys.modules["app"]._code_stamp = _code_stamp
 
@@ -331,6 +331,21 @@ button[data-variant="segmented_control"][aria-checked="true"] p, button[data-var
 .msg-media img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 8px; display: block; }
 .msg-media .mm span { position: absolute; left: 4px; bottom: 4px; background: rgba(0,0,0,.55); border-radius: 6px; padding: 0 4px; font-size: 13px; }
 .st-key-doc_thumbs { flex-wrap: wrap; }
+/* ⏰ Spray reminders in the 🔔 bell */
+.rem-card { display: flex; flex-direction: column; gap: 3px; font-size: 14px; border-left: 4px solid #cfe3d3; padding-left: 10px; }
+.rem-card.soon { border-left-color: #e3b341; }
+.rem-card.due { border-left-color: #c53b32; }
+.rem-top { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.rem-top b { font-size: 15px; }
+.rem-when { font-weight: 700; color: #1b5e20; white-space: nowrap; }
+.rem-card.soon .rem-when { color: #9a6700; }
+.rem-card.due .rem-when { color: #c53b32; }
+.rem-what { color: #4b5b4e; }
+.rem-med { font-weight: 600; }
+.rem-dose { background: #eef7f0; border-radius: 8px; padding: 4px 8px; }
+.rem-rule { color: #6b7a6e; font-size: 13px; }
+.rem-note { color: #9a6700; font-size: 13px; }
+[class*="st-key-remb_"] { flex-wrap: wrap; }
 /* 🔊 Read aloud on page blocks, and the floating ⏸ ⏹ bar while it reads */
 [class*="st-key-read_"] button { min-height: 0; padding: 3px 12px; border-radius: 16px; border: none;
   background: #e8f3ea; color: #1b5e20; width: auto; }
@@ -1176,19 +1191,69 @@ def today_update(user):
 
 
 def bell(user):
-    """🔔 Notification bell: questions about remedies Crop Doctor gave - did you use it, when, did it
-    work, then a photo of the medicine used and of the crop now. Every answer is saved to My history."""
+    """🔔 Notification bell: spray reminders (when a remedy has to be used again), then questions about
+    remedies Crop Doctor gave - did you use it, when, did it work, then a photo of the medicine used
+    and of the crop now. Every answer is saved to My history."""
     waiting = [r for r in history.records(user["farmer_id"]) if not r["feedback"]][::-1]  # oldest first
-    with st.popover("🔔" + (f" {len(waiting)}" if waiting else ""), width="content"):
+    rems = reminders.for_farmer(user["farmer_id"])
+    count = len(waiting) + sum(r["due_now"] for r in rems)  # questions, and sprays due today or late
+    with st.popover("🔔" + (f" {count}" if count else ""), width="content"):
         st.markdown("**🔔 " + T("Notifications", "నోటిఫికేషన్లు") + "**")
         if ss.get("bell_saved"):
             st.success(ss.pop("bell_saved"))
         if ss.get("bell_error"):
             st.error(ss.pop("bell_error"))
-        if not waiting:
+        if not waiting and not rems:
             st.caption(T("No new notifications.", "కొత్త నోటిఫికేషన్లు ఏవీ లేవు."))
+        if rems:
+            st.markdown("**⏰ " + T("Spray reminders", "పిచికారీ గుర్తుచేతలు") + "**")
+            for r in rems:
+                reminder_card(user, r)
+        if waiting and rems:
+            st.markdown("**📝 " + T("Tell us how the remedy worked", "మందు ఎలా పనిచేసిందో చెప్పండి") + "**")
         for rec in waiting:
             bell_item(user, rec)
+
+
+def reminder_card(user, r):
+    """One spray reminder: what, when, how much, with 🔊 and "I sprayed" / "No more reminders"."""
+    e = html.escape
+    w = r[ss.ui_lang]
+    tone = "due" if r["due_now"] else "soon" if r["days"] <= 2 else ""
+    notes = "".join(f'<div class="rem-note">{e(n)}</div>' for n in w["notes"])
+    with st.container(border=True, key=f"rem_{r['id']}"):
+        H(f'<div class="rem-card {tone}"><div class="rem-top"><b>{"🪤" if r["lure"] else "🔁"} {e(w["title"])}</b>'
+          f'<span class="rem-when">{e(w["when"])}</span></div>'
+          f'<div class="rem-what">{e(w["what"])}</div><div class="rem-med">💊 {e(w["medicine"])}</div>'
+          + (f'<div class="rem-dose">{e(w["dose"])}</div>' if w["dose"] else "")
+          + f'<div class="rem-rule">{e(w["rule"])}</div>{notes}</div>')
+        read_btn(reminders.speech(r, ss.ui_lang), f"rem_{r['id']}")
+        with st.container(horizontal=True, gap="small", key=f"remb_{r['id']}"):
+            if r["days"] <= 2:  # "done" only near the day, so it is not tapped by mistake a week early
+                st.button("✅ " + (T("I changed it today", "ఈరోజు ఎర మార్చాను") if r["lure"]
+                                   else T("I sprayed today", "ఈరోజు పిచికారీ చేశాను")),
+                          key=f"remdone_{r['id']}", type="primary", on_click=reminder_done, args=(user, r["id"]))
+            st.button(T("No more reminders", "ఇక గుర్తు చేయవద్దు"), key=f"remstop_{r['id']}",
+                      on_click=reminder_stop, args=(user, r["id"]))
+
+
+def reminder_done(user, rid):
+    try:
+        history.mark_sprayed(rid, user)
+    except history.HistoryError as ex:
+        ss.bell_error = err(ex)
+        return
+    nxt = next((r for r in reminders.for_farmer(user["farmer_id"]) if r["id"] == rid), None)
+    ss.bell_saved = (T("Saved. Next one: ", "సేవ్ అయింది. తర్వాతది: ") + nxt[ss.ui_lang]["when"] if nxt
+                     else T("Saved. That was the last spray for this problem.", "సేవ్ అయింది. ఈ సమస్యకు ఇదే చివరి పిచికారీ."))
+
+
+def reminder_stop(user, rid):
+    try:
+        history.stop_reminders(rid, user)
+        ss.bell_saved = T("Okay, no more reminders for this.", "సరే, దీని గురించి ఇక గుర్తు చేయము.")
+    except history.HistoryError as ex:
+        ss.bell_error = err(ex)
 
 
 def bell_item(user, rec):

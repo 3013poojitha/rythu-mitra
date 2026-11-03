@@ -189,6 +189,14 @@ def build(farmer_id):
     f = data.FARMER_INDEX[farmer_id]
     weather, weather_lines = _weather_lines(f)
     crop_lines = _crop_lines(f)
+    from . import reminders  # spray reminders due today, late, or tomorrow (also in the 🔔 bell)
+    for r in reminders.for_farmer(farmer_id):
+        if r["days"] <= 1:
+            crop_lines.insert(0, _line("🔁" if r["due_now"] else "📅", f"{r['en']['title']} ({r['en']['when']}): {r['en']['medicine']} - "
+                                             f"{r['en']['what']}. {r['en']['dose']}".rstrip(". ") + ".",
+                                       f"{r['te']['title']} ({r['te']['when']}): {r['te']['medicine']} - "
+                                       f"{r['te']['what']}. {r['te']['dose']}".rstrip(". ") + ".",
+                                       "do" if r["due_now"] else "ok"))
     if not any(line["icon"] not in ("📝", "📅") for line in crop_lines):
         crop_lines.insert(0, _line("👍", "No crop work due today.", "ఈరోజు పంట పని ఏదీ లేదు.", "ok"))
     return {"date": date.today().isoformat(), "farmer_id": farmer_id, "name": f["name"],

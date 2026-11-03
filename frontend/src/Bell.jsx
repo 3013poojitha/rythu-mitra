@@ -4,16 +4,22 @@ import { api } from "./api.jsx";
 import { useLang } from "./i18n.jsx";
 import * as fu from "./pages/followup.js";
 
-// 🔔 Notification bell (farmers): asks about remedies Crop Doctor gave - did you use it, when,
-// did it work, then a photo of the medicine used and of the crop now. Every answer is saved to My history.
+// 🔔 Notification bell (farmers): spray reminders (when a remedy has to be used again), then questions
+// about remedies Crop Doctor gave - did you use it, when, did it work, then a photo of the medicine used
+// and of the crop now. Every answer is saved to My history.
 export default function Bell({ refresh }) {
   const { t } = useLang();
   const [open, setOpen] = useState(false);
   const [pending, setPending] = useState([]);
   const [done, setDone] = useState([]); // ids answered while the panel is open
+  const [rems, setRems] = useState([]); // spray reminders (backend/app/reminders.py)
+  const [note, setNote] = useState(null); // [en, te] after "I sprayed" / "No more reminders"
   const boxRef = useRef(null);
 
-  const load = () => api.history().then((h) => setPending(h.records.filter((r) => !r.feedback).reverse())).catch(() => {});
+  const load = () => {
+    api.history().then((h) => setPending(h.records.filter((r) => !r.feedback).reverse())).catch(() => {});
+    api.reminders().then((r) => setRems(r.reminders)).catch(() => {});
+  };
   useEffect(() => { load(); }, [refresh]);
   useEffect(() => {
     if (!open) return;
@@ -23,11 +29,22 @@ export default function Bell({ refresh }) {
   }, [open]);
 
   const waiting = pending.filter((r) => !done.includes(r.id));
+  const count = waiting.length + rems.filter((r) => r.due_now).length; // questions, and sprays due today or late
+
+  async function remAction(r, sprayed) {
+    const res = await (sprayed ? api.reminderSprayed(r.id) : api.reminderStop(r.id)).catch(() => null);
+    if (!res) return;
+    setRems(res.reminders);
+    const next = res.reminders.find((x) => x.id === r.id);
+    setNote(!sprayed ? ["Okay, no more reminders for this.", "సరే, దీని గురించి ఇక గుర్తు చేయము."]
+      : next ? [`Saved. Next one: ${next.en.when}`, `సేవ్ అయింది. తర్వాతది: ${next.te.when}`]
+        : ["Saved. That was the last spray for this problem.", "సేవ్ అయింది. ఈ సమస్యకు ఇదే చివరి పిచికారీ."]);
+  }
   return (
     <div className="bell" ref={boxRef}>
       <button className="bell-btn" title={t("Notifications", "నోటిఫికేషన్లు")}
-              onClick={() => { if (!open) { load(); setDone([]); } setOpen(!open); }}>
-        🔔{waiting.length > 0 && <span className="bell-count">{waiting.length}</span>}
+              onClick={() => { if (!open) { load(); setDone([]); setNote(null); } setOpen(!open); }}>
+        🔔{count > 0 && <span className="bell-count">{count}</span>}
       </button>
       {open && (
         <div className="bell-panel">
@@ -35,12 +52,38 @@ export default function Bell({ refresh }) {
             <b>🔔 {t("Notifications", "నోటిఫికేషన్లు")}</b>
             <button className="link" onClick={() => setOpen(false)}>✕</button>
           </div>
-          {!pending.length && <p className="muted bell-empty">{t("No new notifications.", "కొత్త నోటిఫికేషన్లు ఏవీ లేవు.")}</p>}
+          {note && <div className="success rem-saved">{t(note[0], note[1])}</div>}
+          {!pending.length && !rems.length && <p className="muted bell-empty">{t("No new notifications.", "కొత్త నోటిఫికేషన్లు ఏవీ లేవు.")}</p>}
+          {rems.length > 0 && <div className="bell-sub">⏰ {t("Spray reminders", "పిచికారీ గుర్తుచేతలు")}</div>}
+          {rems.map((r) => <ReminderCard key={r.id} r={r} onDone={() => remAction(r, true)} onStop={() => remAction(r, false)} />)}
+          {rems.length > 0 && pending.length > 0 && <div className="bell-sub">📝 {t("Tell us how the remedy worked", "మందు ఎలా పనిచేసిందో చెప్పండి")}</div>}
           {pending.map((r) => (
             <RemedyQuestions key={r.id} rec={r} onSaved={() => setDone((d) => [...d, r.id])} />
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+// One spray reminder: what, when, how much, with 🔊 and "I sprayed" (near the day) / "No more reminders"
+function ReminderCard({ r, onDone, onStop }) {
+  const { lang, t } = useLang();
+  const w = r[lang];
+  const tone = r.due_now ? "due" : r.days <= 2 ? "soon" : "";
+  return (
+    <div className={`bell-item rem-card ${tone}`} data-read>
+      <div className="rem-top"><b>{r.lure ? "🪤" : "🔁"} {w.title}</b><span className="rem-when">{w.when}</span></div>
+      <div className="rem-what">{w.what}</div>
+      <div className="rem-med">💊 {w.medicine}</div>
+      {w.dose && <div className="rem-dose">{w.dose}</div>}
+      <div className="rem-rule">{w.rule}</div>
+      {w.notes.map((n) => <div key={n} className="rem-note">{n}</div>)}
+      <div className="row gap-sm wrap">
+        <ReadAloud />
+        {r.days <= 2 && <button className="primary" onClick={onDone}>✅ {r.lure ? t("I changed it today", "ఈరోజు ఎర మార్చాను") : t("I sprayed today", "ఈరోజు పిచికారీ చేశాను")}</button>}
+        <button onClick={onStop}>{t("No more reminders", "ఇక గుర్తు చేయవద్దు")}</button>
+      </div>
     </div>
   );
 }

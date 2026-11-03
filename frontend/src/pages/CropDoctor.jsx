@@ -18,7 +18,7 @@ const L = {
     mock: "Mock AI mode: the photo is not really analysed - a matching problem is picked from the library. Add an API key for real photo analysis.",
     disclaimer: "Doses are demo values based on common recommendations. Always read the product label and confirm with your AEO.",
     forArea: "for {a} acre(s)", aiModel: "AI model", all: "All", files: "JPG / PNG, max 8 MB", recommended: "Recommended", perAcre: "Per acre",
-    savedA: "📜 Saved to your ", savedLink: "History", savedB: ". After you use the remedy, tell us the result and send a photo from the 🔔 bell at the top.",
+    savedA: "Saved to your ", savedLink: "History", savedB: ". After you use the remedy, tell us the result and send a photo from the bell at the top.",
   },
   te: {
     title: "పంట వైద్యుడు", sub: "తెగులు సోకిన మొక్క ఫోటోలు లేదా వీడియోలు పంపండి. సమస్యను గుర్తించి, ఏ మందు, ఎంత మోతాదు, ఎప్పుడు పిచికారీ చేయాలో చెబుతాం.",
@@ -31,7 +31,7 @@ const L = {
     mock: "మాక్ AI మోడ్: ఫోటో నిజంగా పరిశీలించబడలేదు. నిజమైన విశ్లేషణ కోసం API కీ జోడించండి.",
     disclaimer: "మోతాదులు డెమో విలువలు. మందు లేబుల్ చదివి, మీ AEO తో నిర్ధారించుకోండి.",
     forArea: "{a} ఎకరాలకు", aiModel: "AI మోడల్", all: "అన్నీ", files: "JPG / PNG, 8 MB వరకు", recommended: "సిఫార్సు చేసినది", perAcre: "ఎకరానికి",
-    savedA: "📜 మీ ", savedLink: "చరిత్ర", savedB: "లో సేవ్ అయింది. మందు వాడిన తర్వాత పైన 🔔 గంటలో ఫలితం, ఫోటో పంపండి.",
+    savedA: "మీ ", savedLink: "చరిత్ర", savedB: "లో సేవ్ అయింది. మందు వాడిన తర్వాత పైన గంటలో ఫలితం, ఫోటో పంపండి.",
   },
 };
 

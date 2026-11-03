@@ -1,3 +1,4 @@
+import ReadAloud from "../ReadAloud.jsx";
 import { useEffect, useRef, useState } from "react";
 import { api } from "../api.jsx";
 import { useLang } from "../i18n.jsx";
@@ -214,7 +215,8 @@ export default function MyFarm({ farmer, isFarmer, onSaved, view = "full", onBac
   if (view === "home") return hero;
 
   return (
-    <div className="stack">
+    <div className="stack" data-read>
+      <div><ReadAloud /></div>
       {hero}
 
       <div className="farm-stats">

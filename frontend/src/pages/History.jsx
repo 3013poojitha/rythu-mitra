@@ -1,3 +1,4 @@
+import ReadAloud from "../ReadAloud.jsx";
 import { useEffect, useState } from "react";
 import { api, historyReport } from "../api.jsx";
 import { useLang } from "../i18n.jsx";
@@ -149,9 +150,10 @@ function Problems({ user }) {
           <div key={g.month} className="hist-month">
             <h3>📅 {month(g.month, true)}</h3>
             {g.rows.map((r) => (
-              <div key={r.id} className={`hist-card ${r.feedback ? "" : "pending"}`}>
+              <div key={r.id} className={`hist-card ${r.feedback ? "" : "pending"}`} data-read>
                 <div className="hist-date"><b>{day(r.created_on)}</b><small>{time(r.created_on)}</small></div>
                 <div className="grow">
+                  <ReadAloud />
                   <div className="row between wrap">
                     <div>
                       <b className="hist-title">{tc(r.crop)}{r.plot ? ` · ${t("Plot")} ${r.plot}` : ""} — {te ? r.disease_te : r.disease}</b>

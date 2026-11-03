@@ -1,3 +1,4 @@
+import ReadAloud from "../ReadAloud.jsx";
 import { useEffect, useState } from "react";
 import { api } from "../api.jsx";
 import { MONTH_INITIALS, useLang } from "../i18n.jsx";
@@ -157,9 +158,10 @@ export default function Seasons({ user, problems }) {
             {g.rows.map((r) => {
               const probs = problemsFor(r);
               return (
-                <div key={r.id} className="season-card">
+                <div key={r.id} className="season-card" data-read>
                   <div className="plot-crop">{cropIcon(r.crop)}</div>
                   <div className="grow">
+                    <ReadAloud />
                     <div className="row between wrap">
                       <b>{tc(r.crop)}{r.plot ? ` · ${plotName(r.plot)}` : ""}</b>
                       <span className={`pill ${r.growing ? "green" : "grey"}`}>{r.growing ? `🌱 ${t("Growing now")}` : `✅ ${t("Harvested")}`}</span>

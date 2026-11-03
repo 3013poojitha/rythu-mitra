@@ -1,3 +1,4 @@
+import ReadAloud from "../ReadAloud.jsx";
 import { useLang } from "../i18n.jsx";
 
 // "How the app works": Mock AI mode, how it maps to the proposal, and the architecture
@@ -21,7 +22,8 @@ const MAP = [
 export default function About() {
   const { te, t } = useLang();
   return (
-    <div className="stack narrow">
+    <div className="stack narrow" data-read>
+      <div><ReadAloud /></div>
       <div className="panel">
         <h2>{t("What is Mock AI mode?", "మాక్ AI మోడ్ అంటే ఏమిటి?")}</h2>
         {te ? (

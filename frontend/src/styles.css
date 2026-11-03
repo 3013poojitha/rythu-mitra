@@ -632,3 +632,11 @@ label.check input { width: auto; }
 .detect-row { display: flex; gap: 8px; align-items: stretch; }
 .detect-row .primary { flex: 1; }
 .detect-stop { flex: 0 0 52px; padding: 0; font-size: 18px; }
+
+/* 🔊 Read aloud on page blocks, and the floating ⏸ ⏹ bar while it reads */
+.read-btn { margin: 0 0 8px; }
+.voice-float { position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%); z-index: 60; display: flex;
+  align-items: center; gap: 8px; background: #fff; border: 1px solid #cfe3d3; border-radius: 28px;
+  padding: 6px 10px 6px 16px; box-shadow: 0 6px 20px rgba(0,0,0,.15); }
+.voice-float b { color: var(--brand-dark); font-size: 14px; white-space: nowrap; }
+.voice-float .voice-icon { width: 36px; height: 32px; padding: 0; font-size: 15px; }

@@ -222,6 +222,13 @@ def speech_parts(text, size=110, lang="te"):
     te = lang == "te"
     text = re.sub(r"\s*°\s*C?", " డిగ్రీలు" if te else " degrees", text)
     text = text.replace("మి.మీ.", "మిల్లీమీటర్లు.").replace("మి.మీ", "మిల్లీమీటర్లు")
+    if te:  # medicine and money amounts in words, as a farmer would say them
+        text = re.sub(r"\s*/\s*(L|litre)\b", " లీటరుకు", text)
+        text = re.sub(r"\s*/\s*acre\b", " ఎకరానికి", text)
+        for unit, word in ((r"ml", "మిల్లీలీటర్లు"), (r"L", "లీటర్లు"), (r"kg", "కిలోలు"), (r"g", "గ్రాములు"),
+                           (r"qtl", "క్వింటాళ్లు"), (r"traps?", "బుట్టలు")):
+            text = re.sub(rf"(\d)\s*{unit}\b", rf"\1 {word}", text)
+        text = re.sub(r"₹\s*([\d,]+)", r"\1 రూపాయలు", text)
     lines = [" ".join(line.replace("•", " ").split()) for line in text.splitlines()]
     sentences = [s for line in lines if line for s in re.split(r"(?<=[.!?।])\s+", line) if s]
     if not sentences:

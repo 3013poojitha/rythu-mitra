@@ -329,6 +329,18 @@ button[data-variant="segmented_control"][aria-checked="true"] p, button[data-var
 .msg-media img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 8px; display: block; }
 .msg-media .mm span { position: absolute; left: 4px; bottom: 4px; background: rgba(0,0,0,.55); border-radius: 6px; padding: 0 4px; font-size: 13px; }
 .st-key-doc_thumbs { flex-wrap: wrap; }
+/* 🔊 Read aloud on page blocks, and the floating ⏸ ⏹ bar while it reads */
+[class*="st-key-read_"] button { min-height: 0; padding: 3px 12px; border-radius: 16px; border: none;
+  background: #e8f3ea; color: #1b5e20; width: auto; }
+[class*="st-key-read_"] button p { font-size: 13px !important; font-weight: 600; }
+.st-key-voice_float { position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%); z-index: 1000; width: auto !important;
+  background: #ffffff; border: 1px solid #cfe3d3; border-radius: 28px; padding: 6px 10px 6px 16px;
+  box-shadow: 0 6px 20px rgba(0,0,0,.15); }
+.st-key-voice_float b { color: #1b5e20; font-size: 14px; white-space: nowrap; }
+.st-key-voice_float [data-testid="stMarkdown"] { width: auto !important; }
+html:not([data-rm-owner="page"]) .st-key-voice_float, html:not([data-rm-voice]) .st-key-voice_float,
+html[data-rm-owner="page"] .st-key-voice_bar_chat { display: none !important; }
+html[data-rm-voice="wait"] .st-key-voice_float .rm-on, html:not([data-rm-voice="wait"]) .st-key-voice_float .rm-wait { display: none; }
 /* 🔊 Read aloud under each chat answer */
 [class*="st-key-say_"] { margin-top: -6px; }
 [class*="st-key-say_"] button { min-height: 0; padding: 3px 12px; border-radius: 16px; border: none;
@@ -1185,6 +1197,8 @@ def bell_item(user, rec):
         st.markdown(fu_intro(rec, te).replace("\n", "  \n"))  # keep the line break
         if state["step"] != "photo":
             question, options = fu_step(state["step"], rec, te)
+            read_btn(plain(fu_intro(rec, te) + "\n" + question + "\n" + ", ".join(label for _, label in options)),
+                     f"bell_{rec['id']}_{state['step']}")
             st.markdown(f"**{question}**")
             with st.container(horizontal=True, gap="small", key=f"bellr_{rec['id']}"):
                 for value, label in options:
@@ -1458,14 +1472,14 @@ def mic_button(lang):
 """)
 
 
-def speak_aloud(text, lang):
+def speak_aloud(text, lang, owner=""):
     """Read text aloud with a real voice for the language. Chrome on Windows has no Telugu voice and
     reads Telugu letters with an English voice, which sounds wrong - so Telugu is spoken by Gemini
     (when its key is set); otherwise the browser's own Telugu voice if it has one (Edge does)."""
     clean = re.sub(r"\*\*|[•💡➡️📄⚠️]", "", text)
     urls = voice_files(clean) if lang == "te" and ai.is_live("gemini") else []
     ss.say_n = ss.get("say_n", 0) + 1  # a new script every time: Streamlit skips one it has just run
-    page_js(SAY_JS + f"rmSay({json.dumps(clean)}, '{lang}', {json.dumps(urls)}); // {ss.say_n}")
+    page_js(SAY_JS + f"rmSay({json.dumps(clean)}, '{lang}', {json.dumps(urls)}, null, '{owner}'); // {ss.say_n}")
 
 
 # The Telugu voice, piece by piece, as files the page plays as soon as each one is ready
@@ -1500,6 +1514,41 @@ def save_voice(part, path, first=False):
             old.unlink(missing_ok=True)
 
 
+def plain(markup):
+    """What a block of the page says, as plain text to read aloud: HTML or Markdown without tags,
+    symbols or emojis, with a pause (full stop) between boxes, rows and lines."""
+    import unicodedata
+    t = re.sub(r"(?i)<br\s*/?>|</?(div|li|p|h\d|tr)\b[^>]*>", ". ", str(markup)).replace("·", ",")
+    t = re.sub(r"(?i)</(b|small|span|td)>", " ", t)
+    t = html.unescape(re.sub(r"<[^>]+>", " ", t))
+    t = "\n".join(line for line in t.splitlines() if not line.strip().startswith("|"))  # Markdown tables
+    t = re.sub(r"[*#`_>]+", " ", t).replace("\n", ". ")
+    t = "".join(ch for ch in t if unicodedata.category(ch) not in ("So", "Sk", "Cs") and ch not in "\ufe0f\u200d")
+    t = re.sub(r"\s*([.:,·])\s*(?:[.·]\s*)+", r"\1 ", t)  # no ". . ." runs
+    return re.sub(r"\s+", " ", t).strip(" .·")
+
+
+def read_btn(text, key):
+    """🔊 Read aloud: reads this block of the page (for farmers who find reading hard). While it reads,
+    the floating bar at the bottom has ⏸ / ⏹ (voice_float)."""
+    st.button("🔊 " + T("Read aloud", "చదివి వినిపించండి"), key=f"read_{key}", on_click=queue_read, args=(text,))
+
+
+def queue_read(text):
+    ss.say_page = text
+
+
+def voice_float():
+    """The floating ⏸ / ⏹ bar while a 🔊 Read aloud on a page is reading (shown by CSS on
+    html[data-rm-owner="page"]), and the reading itself, started here outside any row of buttons."""
+    with st.container(horizontal=True, gap="small", vertical_alignment="center", key="voice_float"):
+        H('<b class="rm-on">🔊 ' + T("Reading aloud…", "చదివి వినిపిస్తోంది…") + '</b><b class="rm-wait">⏳ '
+          + T("Preparing voice…", "గొంతు సిద్ధమవుతోంది…") + '</b>')
+        voice_icons("float")
+    if ss.get("say_page"):
+        speak_aloud(ss.pop("say_page"), ss.ui_lang, owner="page")
+
+
 def voice_icons(where):
     """Small ⏸ / ⏹ icons for what is being read aloud. Hidden until the reading starts (CSS on
     html[data-rm-voice]); they work in the page itself (rmPauseOrGo / rmQuiet in SAY_JS)."""
@@ -1524,6 +1573,7 @@ window.rmQuiet = () => {
   window.rmTurn = (window.rmTurn || 0) + 1;
   rmPaused(false);
   delete document.documentElement.dataset.rmVoice;
+  delete document.documentElement.dataset.rmOwner;
 };
 // ⏸ / ▶ beside Read aloud: pause and carry on (the Gemini audio or the browser voice)
 window.rmPaused = (on) => {
@@ -1549,8 +1599,9 @@ if (!window.rmVoiceKeys) {
 // urls: the Gemini voice, one recording or a list of pieces played one after another. A piece
 // that is a file still being made (app/static/voice/...) is waited for: the reading starts as soon
 // as the first piece is ready. While waiting, html[data-rm-voice="wait"] shows "preparing" and ⏹.
-window.rmSay = (text, lang, urls, onEnd) => {
+window.rmSay = (text, lang, urls, onEnd, owner) => {
   rmQuiet();
+  if (owner) document.documentElement.dataset.rmOwner = owner;  // 'page': a 🔊 Read aloud on a page (floating bar)
   const mine = window.rmTurn;
   const done = () => { if (mine !== window.rmTurn) return; delete document.documentElement.dataset.rmVoice; window.rmAudio = null; onEnd && onEnd(); };
   const list = (Array.isArray(urls) ? urls : [urls]).filter(Boolean);
@@ -1864,9 +1915,10 @@ def page_doctor(user):
             if d["status"] != "detected":
                 # Worded again in the language that is on now (the result may be from before a switch)
                 d = ai._diagnosis("healthy" if d["status"] == "healthy" else None, d["confidence"], d.get("observed"), lang)
+                read_btn(plain(f"{d['name']}. {d['remedy']}"), "diag_msg")
                 st.warning(f"**{d['name']}** — {d['remedy']}")
             else:
-                report(diseases.INDEX[d["disease_id"]], acres, lang, confidence=d["confidence"])
+                report(diseases.INDEX[d["disease_id"]], acres, lang, confidence=d["confidence"], key="diag", slot=st.container())
 
     with st.container(key="panel_library"):
         st.markdown("### 📚 " + T("Disease library", "తెగుళ్ల సమాచారం"))
@@ -1892,18 +1944,20 @@ def page_doctor(user):
         else:
             options = [d for d in diseases.DISEASES if d["crop"] == pick_crop]
             dz = st.selectbox(T("Problem", "సమస్య"), options, key="lib_dz", format_func=label)
-        report(dz, acres, lang)
+        report(dz, acres, lang, key=f"lib_{dz['id']}", slot=st.container())
 
 
-def report(d, acres, lang, confidence=None):
+def report(d, acres, lang, confidence=None, key="report", slot=None):
     te = lang == "te"
+    spoken = []  # everything shown, to read aloud with the 🔊 button at the top
     tank = diseases.SPRAYER_TANK_L
     conf = (f'<span class="pill soft">{round(confidence * 100)}% {"నమ్మకం" if te else "confidence"}</span>'
             if confidence else "")
-    H(f"""<div class="dz-head"><div><div class="dz-name">{d['name_te'] if te else d['name']}</div>
+    head = (f"""<div class="dz-head"><div><div class="dz-name">{d['name_te'] if te else d['name']}</div>
 <span class="muted">{data.CROPS[d['crop']] if te else d['crop']} · {terms.te(d['type']) if te else d['type']}</span></div>{conf}</div>
 <div class="grid2"><div class="box"><b>{'ఎందుకు వస్తుంది' if te else 'Why it happens'}</b>{d['cause_te'] if te else d['cause']}</div>
 <div class="box"><b>{'లక్షణాలు' if te else 'Symptoms to check'}</b>{d['symptoms_te'] if te else d['symptoms']}</div></div>""")
+    H(head)
     cards = []
     for i, t in enumerate(diseases.plan_for(d, acres)):
         icon = "🧪" if t["kind"] == "Chemical" else "🌿"
@@ -1926,16 +1980,22 @@ def report(d, acres, lang, confidence=None):
 <div><b>{T("Why:", "ఎందుకు:")}</b> {tr(t, 'reason')}</div><div><b>{T("When:", "ఎప్పుడు:")}</b> {tr(t, 'when')}</div>
 <div><b>{T("Repeat:", "మళ్లీ:")}</b> {tr(t, 'repeat')}</div>
 <div><b>{T("How:", "ఎలా:")}</b> {tr(t, 'method')}</div>{phi}</div>""")
-    H(f"<h3>{'మందుల ప్రణాళిక' if te else 'Treatment plan'} — {acres:g} {'ఎకరాలు' if te else 'acres'}</h3>"
-      f'<div class="treat-grid">{"".join(cards)}</div>')
+    plan = (f"<h3>{'మందుల ప్రణాళిక' if te else 'Treatment plan'} — {acres:g} {'ఎకరాలు' if te else 'acres'}</h3>"
+            f'<div class="treat-grid">{"".join(cards)}</div>')
+    H(plan)
     prev = "".join(f"<li>{p}</li>" for p in d["prevention_te" if te else "prevention"])
     safety = "".join(f"<li>{p}</li>" for p in diseases.SAFETY["te" if te else "en"])
     note = T("Doses come only from the vetted library — the AI never writes doses. Demo values; confirm with your AEO before spraying.",
              "మోతాదులు పరిశీలించిన సమాచారం నుండి మాత్రమే వస్తాయి — AI ఎప్పుడూ మోతాదు రాయదు. ఇవి డెమో విలువలు; "
              "పిచికారీ ముందు మీ AEO తో నిర్ధారించుకోండి.")
-    H(f"""<div class="grid2"><div class="box"><b>{'నివారణ' if te else 'Prevention'}</b><ul>{prev}</ul></div>
+    tail = f"""<div class="grid2"><div class="box"><b>{'నివారణ' if te else 'Prevention'}</b><ul>{prev}</ul></div>
 <div class="box"><b>{'భద్రత' if te else 'Spraying safety'}</b><ul>{safety}</ul></div></div>
-<p class="muted">{note}</p>""")
+<p class="muted">{note}</p>"""
+    H(tail)
+    spoken += [head, plan, tail]
+    # 🔊 at the top of the report (placed in the slot made before the report was drawn)
+    with slot or st.container():  # slot: made by the caller before the report, so 🔊 sits at the top
+        read_btn(plain(" ".join(spoken)), key)
 
 
 # ---------------------------------------------------------------------------
@@ -1973,6 +2033,7 @@ def farm_profile(f, farmer_view, home=False, back=False):
         ss.pop("profile_saved")
     if home:
         return
+    read_btn(plain(f'{greeting}. {f["farmer_id"]}. {f["village"]}, {place}. ') + ". " + profile_speech(f), f"profile_{f['farmer_id']}")
 
     chips = "".join(f"<span>{data.crop_icon(c)} {crop_name(c)}</span>" for c in f["crops"])
     H(f"""<div class="farm-stats">
@@ -1997,6 +2058,17 @@ def farm_profile(f, farmer_view, home=False, back=False):
 {crop_dates(p)}</div></div>"""
                         for p in f["plots"])
         H(f'<div class="plot-cards">{cards}</div>')
+
+
+def profile_speech(f):
+    """My details, said in words: land, crops, bank, and each plot."""
+    plots = ". ".join(T(f'{crop_name(p["crop"])}: {p["area_acres"]:g} acres, survey {p["survey_no"]}, {V(p["soil"])}, {V(p["irrigation"])}',
+                        f'{crop_name(p["crop"])}: {p["area_acres"]:g} ఎకరాలు, సర్వే నంబర్ {p["survey_no"]}, {V(p["soil"])}, {V(p["irrigation"])}')
+                      for p in f["plots"])
+    return T(f'Total land {f["total_acres"]:g} acres in {len(f["plots"])} plots. Crops: {", ".join(crop_name(c) for c in f["crops"])}. '
+             f'Bank: {f["bank"]}. {plots}.',
+             f'మొత్తం భూమి {f["total_acres"]:g} ఎకరాలు, {len(f["plots"])} భూమి ముక్కలు. పంటలు: {", ".join(crop_name(c) for c in f["crops"])}. '
+             f'బ్యాంక్: {f["bank"]}. {plots}.')
 
 
 def crop_dates(p):
@@ -2131,8 +2203,8 @@ def rupees(n):
     return f"₹{n:,}"
 
 
-def payments(f):
-    """Payment status: where the money of each scheme is right now."""
+def payments(f, read=False):
+    """Payment status: where the money of each scheme is right now. read: a 🔊 Read aloud on top."""
     e = html.escape
     bank = e(f["bank"])
     rows = []
@@ -2152,6 +2224,9 @@ def payments(f):
         rows.append(f'<div class="pay-row"><span class="pay-icon">{icon}</span>'
                     f'<span class="pay-main"><b>{e(scheme)}</b><small>{note}</small></span>'
                     f'<span class="pay-amt"><b>{rupees(a["amount"])}</b><span class="pill {color}">{e(V(s))}</span></span></div>')
+    if read:
+        read_btn(T("Payment status. ", "డబ్బు జమ స్థితి. ") + T("Bank account", "బ్యాంకు ఖాతా") + f': {f["bank"]}. '
+                 + (plain("".join(rows)) or T("No scheme payments for you yet.", "మీకు ఇంకా పథకం డబ్బు ఏదీ లేదు.")), "pay")
     st.markdown(f'{T("Bank account", "బ్యాంకు ఖాతా")}: **{f["bank"]}**')
     if rows:
         st.markdown("".join(rows), unsafe_allow_html=True)
@@ -2220,6 +2295,11 @@ def side_sections(f, fid):
     if ss.get("applied"):
         ss.side_open = "apps"  # stays open to show the new application
     with side_section("apps", f"📋 {T('Scheme applications', 'పథకాల దరఖాస్తులు')}  ·  {len(apps)}"):
+        apps_html = "".join(
+            f'<div class="side-row"><span class="grow"><b>{e(a["scheme_te"] if is_te() else a["scheme"])}</b>'
+            f'<span class="pay-amt"><span class="pill">{e(V(a["status"]))}</span>'
+            f'<small>{rupees(a["amount"]) if a["amount"] else ""}</small></span></div>' for a in apps)
+        read_btn(T("Scheme applications. ", "పథకాల దరఖాస్తులు. ") + plain(apps_html), "apps")
         H("".join(
             f'<div class="side-row"><span class="grow"><b>{e(a["scheme_te"] if is_te() else a["scheme"])}</b>'
             f'<small class="muted">{a["app_id"]}</small></span><span class="pay-amt">'
@@ -2230,11 +2310,14 @@ def side_sections(f, fid):
 
     credited = sum(a["amount"] for a in apps if a["status"] == "Credited")
     with side_section("pay", f"💰 {T('Payment status', 'డబ్బు జమ స్థితి')}  ·  {rupees(credited)}"):
-        payments(f)
+        payments(f, read=True)
 
     mine = [g for g in data.GRIEVANCES if g["farmer_id"] == fid]
     still_open = sum(g["status"] != "Resolved" for g in mine)
     with side_section("griev", f"📣 {T('Grievances', 'ఫిర్యాదులు')}  ·  {still_open} {T('open', 'పెండింగ్')}"):
+        read_btn(T("Grievances. ", "ఫిర్యాదులు. ") + (". ".join(
+            f'{V(g["category"])}, {day_label(date.fromisoformat(g["created_on"]))}, {V(g["status"])}' for g in mine)
+            or T("No grievances yet.", "ఇంకా ఫిర్యాదులు లేవు.")), "griev")
         if mine:
             H("".join(
                 f'<div class="side-row"><span class="grow"><b>{g["grievance_id"]}</b> {e(V(g["category"]))}'
@@ -2260,6 +2343,12 @@ def side_sections(f, fid):
 
     district = f["district_te"] if is_te() else f["district"]
     with side_section("weather", f"🌦️ {T('Weather', 'వాతావరణం')}  ·  {district}"):
+        read_btn(T(f"Weather in {district}. ", f"{district} లో వాతావరణం. ") + ". ".join(
+            T(f'{day_label(date.fromisoformat(w["date"]))}: {w["condition"]}, high {w["max_c"]} degrees, low {w["min_c"]}'
+              + (f', rain {w["rain_mm"]} millimetres' if w["rain_mm"] else ""),
+              f'{day_label(date.fromisoformat(w["date"]))}: {w["condition_te"]}, గరిష్ఠం {w["max_c"]} డిగ్రీలు, కనిష్ఠం {w["min_c"]}'
+              + (f', వర్షం {w["rain_mm"]} మిల్లీమీటర్లు' if w["rain_mm"] else ""))
+            for w in data.WEATHER[f["district"]]), "weather")
         days = []
         for w in data.WEATHER[f["district"]]:
             icon = ("⛈️" if w["condition"] == "Thunderstorm" else "🌧️") if w["rain_mm"] else "☀️" if w["condition"] == "Sunny" else "⛅"
@@ -2271,6 +2360,8 @@ def side_sections(f, fid):
 
     crops = [c for c in f["crops"] if c in data.ADVISORIES]
     with side_section("advice", f"🌱 {T('Advisory', 'సలహాలు')}  ·  {', '.join(crop_name(c) for c in crops)}"):
+        read_btn(T("Advisory. ", "సలహాలు. ") + ". ".join(
+            f"{crop_name(c)}: " + ". ".join(data.ADVISORIES[c][ss.ui_lang][:3]) for c in crops), "advice")
         for c in crops:
             st.markdown(f"**{crop_name(c)}**")
             for tip in data.ADVISORIES[c][ss.ui_lang][:3]:
@@ -2438,6 +2529,9 @@ def history_card(r, farmer_view, opts):
         meta = (f'{who}{r["type"]} · {round(r["confidence"] * 100)}% confidence · {r["acres"]:g} '
                 f'{"acre" if r["acres"] == 1 else "acres"} · via {r["source"]}')
         spotted = f'{e(r["disease"])} on {crop}'
+    read_btn(plain(f"{day_label(when)}. {title}. {meta}. " + T("Disease spotted", "తెగులు కనిపించింది") + f": {spotted}. "
+                   + T("Remedy given", "ఇచ్చిన మందు") + f": {remedies}. " + T("Used?", "వాడారా?") + f" {used}. "
+                   + T("Result", "ఫలితం") + f": {result}"), f"hist_{r['id']}")
     H(f'''<div class="hist-card {'' if fb else 'pending'}">
 <div class="hist-date"><b>{day_label(when)}</b><small>{time_label(when)}</small></div>
 <div style="flex:1;min-width:0">
@@ -2693,11 +2787,13 @@ def season_card(r, problems, now):
     months = T("month" if r["months"] == 1 else "months", "నెలలు" if r["months"] != 1 else "నెల")
     expected = (f' 🧺 {T("harvest expected", "కోత అంచనా")} {month_label(r["expected_end"])} ·'
                 if r["growing"] and r.get("expected_end") else "")
-    H(f'''<div class="season-card"><div class="plot-crop">{data.crop_icon(r["crop"])}</div><div style="flex:1;min-width:0">
+    card = (f'''<div class="season-card"><div class="plot-crop">{data.crop_icon(r["crop"])}</div><div style="flex:1;min-width:0">
 <div class="hist-head"><b>{e(crop_name(r["crop"]))}{plot}</b>{status}</div>
 <div class="season-when"><b>{month_label(r["start"])} → {month_label(r["end"]) if r["end"] else T("now", "ఇప్పటివరకు")}</b> ·{expected}
 {r["months"]} {months} · {V(r["season"])} · {r["area_acres"]:g} {T("acres", "ఎకరాలు")}</div>
-<div class="plot-meta">{"".join(f"<span>{m}</span>" for m in meta)}</div></div></div>''')
+<div class="plot-meta">{"".join(f"<span>{m}</span>, " for m in meta)}</div></div></div>''')
+    read_btn(plain(card.replace("→", T(" to ", " నుండి "))), f"season_{r['crop']}_{r.get('plot')}_{r['start']}")
+    H(card)
 
 
 def page_problems(user):
@@ -2926,6 +3022,11 @@ def page_dashboard():
 # How it works
 # ---------------------------------------------------------------------------
 
+def about_md(md):
+    read_btn(plain(md), "about")
+    st.markdown(md)
+
+
 def page_about():
     with st.container(key="panel_about"):
         if ss.get("view") == "about" and st.columns([5, 1])[1].button("← " + T("Back", "వెనక్కి"), width="stretch",
@@ -2933,7 +3034,7 @@ def page_about():
             ss.pop("view", None)
             st.rerun()
         if is_te():
-            st.markdown("""
+            about_md("""
 ## యాప్ ఎలా పనిచేస్తుంది
 
 **రైతు మిత్ర** భారత్ విస్తార్‌తో కలిపిన తెలంగాణ రాష్ట్ర సమాచార వ్యవస్థకు ఒక నమూనా (ప్రయోగాత్మక) యాప్.
@@ -2960,7 +3061,7 @@ Settings → Secrets లో). అప్పుడు నిజమైన AI మో
 | PMU Dashboard | §2.9 పర్యవేక్షణ & నివేదికలు, §2.10 PMU |
 """)
             return
-        st.markdown("""
+        about_md("""
 ## How the app works
 
 **Rythu Mitra** is a prototype of the Telangana State Intelligence Layer integrated with Bharat Vistaar.
@@ -3047,3 +3148,4 @@ else:
             page_dashboard()
         else:
             page_about()
+    voice_float()

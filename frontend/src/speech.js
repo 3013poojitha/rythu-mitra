@@ -12,13 +12,18 @@ let turn = 0; // goes up on every stop/start, so a voice that arrives after a st
 
 // What is being read now, for the ⏸ / ⏹ icons: null | "preparing" | "speaking" | "paused"
 let status = null;
+let owner = null; // who started it: "page" = a 🔊 Read aloud on a page (the floating bar shows)
 const listeners = new Set();
 function setStatus(s) {
   status = s;
   listeners.forEach((fn) => fn());
 }
+const subscribe = (fn) => { listeners.add(fn); return () => listeners.delete(fn); };
 export function useVoice() {
-  return useSyncExternalStore((fn) => { listeners.add(fn); return () => listeners.delete(fn); }, () => status);
+  return useSyncExternalStore(subscribe, () => status);
+}
+export function useVoiceOwner() {
+  return useSyncExternalStore(subscribe, () => owner);
 }
 
 export function stopSpeaking() {
@@ -30,6 +35,7 @@ export function stopSpeaking() {
     audio.pause();
     audio = null;
   }
+  owner = null;
   setStatus(null);
 }
 
@@ -81,8 +87,9 @@ async function geminiPieces(words, lang) {
 }
 
 // onReady: the voice is about to start (Gemini audio can take a few seconds to prepare); onEnd: finished
-export async function speakText(text, lang, { onReady, onEnd } = {}) {
+export async function speakText(text, lang, { onReady, onEnd, owner: by } = {}) {
   stopSpeaking();
+  owner = by || null;
   const mine = turn;
   setStatus("preparing");
   const words = clean(text);

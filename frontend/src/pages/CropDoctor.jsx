@@ -1,3 +1,4 @@
+import ReadAloud from "../ReadAloud.jsx";
 import { useEffect, useRef, useState } from "react";
 import { api } from "../api.jsx";
 import { useLang } from "../i18n.jsx";
@@ -183,7 +184,8 @@ export default function CropDoctor({ user }) {
         </div>
       )}
       {result && !browse && result.diagnosis.status !== "detected" && (
-        <div className="panel">
+        <div className="panel" data-read>
+          <ReadAloud />
           <h2>{result.diagnosis.name}</h2>
           {result.diagnosis.observed && <p>{result.diagnosis.observed}</p>}
           <p>{result.diagnosis.remedy}</p>
@@ -200,7 +202,8 @@ export default function CropDoctor({ user }) {
 function Report({ d, t, te, tv, acres, tank, safety, diag, mode }) {
   const groups = [["Chemical", t.chemical], ["Organic", t.organic]];
   return (
-    <div className="panel report">
+    <div className="panel report" data-read>
+      <ReadAloud />
       <div className="report-head">
         <div>
           <span className="tag stage">{tv(d.type)}</span>

@@ -12,6 +12,7 @@ import History from "./pages/History.jsx";
 import MyFarm from "./pages/MyFarm.jsx";
 import WhatsAppButton from "./WhatsAppButton.jsx";
 import Bell from "./Bell.jsx";
+import { VoiceBar } from "./ReadAloud.jsx";
 import TodayUpdate from "./TodayUpdate.jsx";
 import Consent from "./Consent.jsx";
 import { LangSwitch, useLang } from "./i18n.jsx";
@@ -167,6 +168,7 @@ export default function App() {
         <Page user={user} refreshUser={refreshUser} waOpen={waOpen}
               goHome={() => setTab(isFarmer ? "services" : "chat")} />
       </main>
+      <VoiceBar />
       <WhatsAppButton label={t("Chat on WhatsApp", "వాట్సాప్‌లో మాట్లాడండి")}
                       onOpen={() => { setTab(isFarmer ? "services" : "chat"); setWaOpen((n) => n + 1); }} />
       {askLogout && (

@@ -1,3 +1,4 @@
+import ReadAloud from "./ReadAloud.jsx";
 import { useEffect, useRef, useState } from "react";
 import { api } from "./api.jsx";
 import { useLang } from "./i18n.jsx";
@@ -96,7 +97,8 @@ function RemedyQuestions({ rec, onSaved }) {
 
   const bad = answers.result === "no_change" || answers.result === "worse";
   return (
-    <div className={`bell-item ${state === "saved" ? "saved" : ""}`}>
+    <div className={`bell-item ${state === "saved" ? "saved" : ""}`} data-read>
+      <ReadAloud />
       <div className="bell-intro">{fu.intro(rec, te, tc, tm).split("\n").map((l, i) => <div key={i}>{bold(l)}</div>)}</div>
       {q && (
         <>

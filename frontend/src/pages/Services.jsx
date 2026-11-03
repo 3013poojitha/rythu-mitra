@@ -1,3 +1,4 @@
+import ReadAloud from "../ReadAloud.jsx";
 import { useEffect, useState } from "react";
 import { api } from "../api.jsx";
 import { useLang } from "../i18n.jsx";
@@ -93,7 +94,7 @@ export default function Services({ user, refreshUser, waOpen }) {
                   <span className={`pill ${statusColor(g.status)}`}>{tv(g.status)}</span>
                 </div>
               )) : <p className="muted">{t("No grievances filed.", "ఫిర్యాదులు ఏవీ లేవు.")}</p>}
-              <h4>{t("Raise a new grievance", "కొత్త ఫిర్యాదు చేయండి")}</h4>
+              <h4 className="no-read">{t("Raise a new grievance", "కొత్త ఫిర్యాదు చేయండి")}</h4>
               <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}>
                 {cats.map((c) => <option key={c} value={c}>{tv(c)}</option>)}
               </select>
@@ -105,7 +106,9 @@ export default function Services({ user, refreshUser, waOpen }) {
             <Section id="weather" openId={openSec} setOpenId={setOpenSec} icon="🌦️" title={t("Weather")} hint={te ? farmer.district_te : farmer.district}>
               <div className="weather">
                 {farmer.weather.map((w) => (
-                  <div key={w.date} className="wday" title={te ? w.condition_te : w.condition}>
+                  <div key={w.date} className="wday" title={te ? w.condition_te : w.condition}
+                       data-say={te ? `${weekday(w.date)}: ${w.condition_te}, గరిష్ఠం ${w.max_c} డిగ్రీలు, కనిష్ఠం ${w.min_c}${w.rain_mm ? `, వర్షం ${w.rain_mm} మిల్లీమీటర్లు` : ""}`
+                         : `${weekday(w.date)}: ${w.condition}, high ${w.max_c} degrees, low ${w.min_c}${w.rain_mm ? `, rain ${w.rain_mm} millimetres` : ""}`}>
                     <small>{weekday(w.date)}</small>
                     <div className="wicon">{w.rain_mm ? (w.condition === "Thunderstorm" ? "⛈️" : "🌧️") : w.condition === "Sunny" ? "☀️" : "⛅"}</div>
                     <b>{w.max_c}°</b><small>{w.min_c}°</small>
@@ -139,7 +142,7 @@ function Section({ id, openId, setOpenId, icon, title, hint, children }) {
         <span className="side-title">{title}{hint !== undefined && hint !== "" && <small>{hint}</small>}</span>
         <span className="side-arrow">›</span>
       </button>
-      {open && <div className="side-body">{children}</div>}
+      {open && <div className="side-body" data-read><ReadAloud />{children}</div>}
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import { useRef } from "react";
 import { useLang } from "./i18n.jsx";
-import { speakText, useVoice, useVoiceOwner } from "./speech.js";
+import { speakText, stopSpeaking, useVoice, useVoiceOwner } from "./speech.js";
 import VoiceControls from "./VoiceControls.jsx";
 
 // What a block of the page says, as plain text to read aloud: no buttons, form fields or emojis,
@@ -42,7 +42,9 @@ export function VoiceBar() {
   return (
     <div className="voice-float">
       <b>{voice === "preparing" ? `⏳ ${t("Preparing voice…", "గొంతు సిద్ధమవుతోంది…")}` : `🔊 ${t("Reading aloud…", "చదివి వినిపిస్తోంది…")}`}</b>
-      <VoiceControls />
+      {voice === "preparing"  // ⏹ already while the voice is being made, so it can be cancelled
+        ? <button className="voice-icon" onClick={stopSpeaking} title={t("Stop", "ఆపండి")}>⏹</button>
+        : <VoiceControls />}
     </div>
   );
 }

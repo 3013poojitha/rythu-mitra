@@ -124,7 +124,7 @@ export default function App() {
                 {isFarmer && <button onClick={() => { setTab("details"); setMenu(false); }}>👤 {t("My details", "నా వివరాలు")}</button>}
                 <button onClick={() => { setTab("password"); setMenu(false); }}>🔑 {t("Change password")}</button>
                 <button onClick={() => { setTab("history"); setMenu(false); }}>
-                  📜 {user.role === "farmer" ? t("My history") : t("Crop history", "పంట చరిత్ర")}
+                  📜 {user.role === "farmer" ? t("History", "చరిత్ర") : t("Crop history", "పంట చరిత్ర")}
                 </button>
                 <button onClick={() => { setTab("about"); setMenu(false); }}>{t("How the app works")}</button>
                 <button onClick={() => { setAskLogout(true); setMenu(false); }}>🚪 {t("Log out")}</button>
@@ -145,7 +145,7 @@ export default function App() {
           <button className="tab active">
             <span>{{
               details: `👤 ${t("My details", "నా వివరాలు")}`,
-              history: `📜 ${isFarmer ? t("My history") : t("Crop history", "పంట చరిత్ర")}`,
+              history: `📜 ${isFarmer ? t("History", "చరిత్ర") : t("Crop history", "పంట చరిత్ర")}`,
               password: `🔑 ${t("Change password")}`,
               about: `ℹ️ ${t("How the app works")}`,
             }[tab]}</span>

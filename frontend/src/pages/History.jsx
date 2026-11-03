@@ -55,7 +55,7 @@ export default function History({ user }) {
       {/* One compact header: title + Download / Print on one line, then the section switch */}
       <div className="panel hist-head">
         <div className="row between wrap">
-          <h3>📜 {isFarmer ? t("My farm history", "నా పొలం చరిత్ర") : t("Farm history", "పొలం చరిత్ర")}</h3>
+          <h3>📜 {t("Farm history", "పొలం చరిత్ర")}</h3>
           {isFarmer && (
             <div className="row gap-sm wrap hist-actions">
               <button onClick={() => getReport("download")} disabled={!!busy}>⬇️ {t("Download history", "చరిత్ర డౌన్‌లోడ్ చేయండి")}</button>

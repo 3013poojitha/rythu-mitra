@@ -1014,7 +1014,7 @@ def header(user):
                     ss.view = "password"  # opens as its own page, like My history
                     ss.close_menu = True
                     st.rerun()
-                label = "📜 " + (T("My history", "నా చరిత్ర") if user["role"] == "farmer" else T("Crop history", "పంట చరిత్ర"))
+                label = "📜 " + (T("History", "చరిత్ర") if user["role"] == "farmer" else T("Crop history", "పంట చరిత్ర"))
                 if st.button(label, width="stretch"):
                     ss.view = "history"
                     ss.close_menu = True
@@ -1050,7 +1050,7 @@ def header(user):
         names = names + [menu_page]
         labels[menu_page] = {
             "My details": "👤 " + T("My details", "నా వివరాలు"),
-            "History": "📜 " + (T("Crop history", "పంట చరిత్ర") if staff else T("My history", "నా చరిత్ర")),
+            "History": "📜 " + (T("Crop history", "పంట చరిత్ర") if staff else T("History", "చరిత్ర")),
             "Change password": "🔑 " + T("Change password", "పాస్‌వర్డ్ మార్చండి"),
             "How the app works": "ℹ️ " + T("How the app works", "యాప్ ఎలా పనిచేస్తుంది"),
         }[menu_page]
@@ -1339,8 +1339,8 @@ def bell_save(user, rec, photos):
         ss.bell_error = err(e)
         return
     ss.bell.pop(rec["id"], None)
-    thanks = T("🙏 Thank you! Your answer is saved in 📜 My history. It helps other farmers too.",
-               "🙏 ధన్యవాదాలు! మీ సమాధానం 📜 నా చరిత్ర లో సేవ్ అయింది. ఇది ఇతర రైతులకు కూడా సహాయపడుతుంది.")
+    thanks = T("🙏 Thank you! Your answer is saved in 📜 History. It helps other farmers too.",
+               "🙏 ధన్యవాదాలు! మీ సమాధానం 📜 చరిత్ర లో సేవ్ అయింది. ఇది ఇతర రైతులకు కూడా సహాయపడుతుంది.")
     if answers.get("result") in ("no_change", "worse"):
         thanks += " " + T("Sorry it did not work. Please contact your AEO, or send a new photo in Crop Doctor.",
                           "ఫలితం బాగోలేదు. మీ AEO ని సంప్రదించండి లేదా పంట వైద్యుడు లో మళ్లీ ఫోటో పంపండి.")
@@ -2759,7 +2759,7 @@ def page_history(user):
     # One compact header: title + Download / Print / Back on one line, then the section switch
     with st.container(key="panel_hist_head"):
         c1, c2 = st.columns([1, 1.6], vertical_alignment="center")
-        c1.markdown("### 📜 " + (T("My farm history", "నా పొలం చరిత్ర") if farmer_view else T("Farm history", "పొలం చరిత్ర")))
+        c1.markdown("### 📜 " + (T("Farm history", "పొలం చరిత్ర")))
         with c2, st.container(horizontal=True, horizontal_alignment="right", gap="small"):
             if farmer_view:
                 history_actions(user)

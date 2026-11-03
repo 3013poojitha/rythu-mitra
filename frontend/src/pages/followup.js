@@ -77,6 +77,6 @@ export function next(name, value, rec) {
 export const FIELD = { used: "used", product: "product", when: "applied_on", result: "result", reason: "reason" };
 
 export const text = {
-  thanks: (te) => (te ? "🙏 ధన్యవాదాలు! మీ సమాధానం **📜 నా చరిత్ర** లో సేవ్ అయింది. ఇది ఇతర రైతులకు కూడా సహాయపడుతుంది." : "🙏 Thank you! Your answer is saved in **📜 My history**. It helps other farmers too."),
+  thanks: (te) => (te ? "🙏 ధన్యవాదాలు! మీ సమాధానం **📜 చరిత్ర** లో సేవ్ అయింది. ఇది ఇతర రైతులకు కూడా సహాయపడుతుంది." : "🙏 Thank you! Your answer is saved in **📜 History**. It helps other farmers too."),
   sorry: (te) => (te ? "ఫలితం బాగోలేదు. మీ AEO ని సంప్రదించండి లేదా **పంట వైద్యుడు** లో మళ్లీ ఫోటో పంపండి." : "Sorry it did not work. Please contact your AEO, or send a new photo in **Crop Doctor**."),
 };

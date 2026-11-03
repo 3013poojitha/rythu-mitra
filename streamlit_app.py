@@ -242,7 +242,9 @@ button[data-variant="segmented_control"][aria-checked="true"] p, button[data-var
 .voice-note small { color: var(--muted); font-size: 11px; }
 .msg .transcript { font-size: 12px; font-style: italic; opacity: .8; border-top: 1px dashed rgba(0,0,0,.15); padding-top: 4px; }
 [data-testid="stChatInput"] { position: relative; }
-.mic-btn { position: absolute; right: 52px; top: 50%; transform: translateY(-50%); width: 34px; height: 34px; border-radius: 50%; border: 0; background: var(--brand-soft); color: var(--brand); display: flex; align-items: center; justify-content: center; padding: 0; cursor: pointer; z-index: 5; }
+/* mic sits 8 px left of the send arrow; typed text stops before the mic */
+[data-testid="stChatInput"] textarea { padding-right: 44px !important; }
+.mic-btn { position: absolute; right: 67px; top: 50%; transform: translateY(-50%); width: 34px; height: 34px; border-radius: 50%; border: 0; background: var(--brand-soft); color: var(--brand); display: flex; align-items: center; justify-content: center; padding: 0; cursor: pointer; z-index: 5; }
 .mic-btn.rec { background: #c53b32; color: #fff; }
 /* Crop Doctor: the photo box reaches down to the bottom of "Your field", the upload area fills it */
 [data-testid="stLayoutWrapper"]:has(> .st-key-panel_photo) { flex: 1 1 auto; display: flex; flex-direction: column; }

@@ -78,6 +78,8 @@ export default function Chat({ user, waOpen, embedded = false }) {
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [voice, setVoice] = useState(null); // null | "greeting" | "listening" | "speaking"
+  const spokenRef = useRef(false); // the box was filled by talking (the answer is read aloud)
+  const inputRef = useRef(null);
   const greeted = useRef(false);
   const recRef = useRef(null);
   // A message has fixed `text` (replies from the backend), or `make(te)` for our own texts so they
@@ -112,6 +114,8 @@ export default function Chat({ user, waOpen, embedded = false }) {
   async function send(text, spoken = false, audio = null) {
     const msg = (text ?? input).trim();
     if (!msg || busy) return;
+    if (text == null && spokenRef.current) spoken = true; // the box was filled with the mic
+    spokenRef.current = false;
     setInput("");
     setMessages((m) => [...m, { role: "user", text: msg, voice: spoken && channel === "WhatsApp", audio }]);
     setBusy(true);
@@ -164,8 +168,11 @@ export default function Chat({ user, waOpen, embedded = false }) {
     }
   }
 
-  // Mic tapped: say the welcome in the chosen language, then listen
+  // Mic tapped: say the welcome in the chosen language, then listen. What the farmer says is written
+  // into the box as they talk; nothing is sent until they press Enter or ➤ (a pause does not cut the
+  // question off, and they can fix a word first). Tap the mic again when done talking.
   function micTap() {
+    if (voice === "listening") return recRef.current?.stop(); // done talking: keep the words in the box
     if (voice) return stopVoice();
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SR) return alert(t("Voice input needs Chrome or Edge.", "మాట్లాడి అడగడానికి Chrome లేదా Edge బ్రౌజర్ కావాలి."));
@@ -173,7 +180,8 @@ export default function Chat({ user, waOpen, embedded = false }) {
     greeted.current = true;
     if (first) setMessages((m) => [...m, { role: "bot", followup: true, make: (isTe) => VOICE_HELLO[isTe ? "te" : "en"] }]);
     setVoice("greeting");
-    speak((first ? VOICE_HELLO : VOICE_AGAIN)[lang], lang, () => listen(SR));
+    const typed = input.trim();
+    speak((first ? VOICE_HELLO : VOICE_AGAIN)[lang], lang, () => listen(SR, typed));
   }
 
   function stopVoice() {
@@ -182,15 +190,21 @@ export default function Chat({ user, waOpen, embedded = false }) {
     setVoice(null);
   }
 
-  function listen(SR) {
+  function listen(SR, typed) {
     const rec = new SR();
     recRef.current = rec;
     rec.lang = te ? "te-IN" : "en-IN";
-    rec.onresult = (e) => send(e.results[0][0].transcript, true);
-    rec.onerror = (e) => setMessages((m) => [...m, { role: "bot", followup: true, make: (isTe) => e.error === "not-allowed"
+    rec.continuous = true; // keep listening through pauses
+    rec.interimResults = true; // show the words as they come
+    rec.onresult = (e) => {
+      const said = Array.from(e.results).map((r) => r[0].transcript).join(" ").trim();
+      setInput((typed ? typed + " " : "") + said);
+      spokenRef.current = true; // the answer will be read aloud
+    };
+    rec.onerror = (e) => e.error !== "aborted" && setMessages((m) => [...m, { role: "bot", followup: true, make: (isTe) => e.error === "not-allowed"
       ? (isTe ? "మైక్ అనుమతి ఇవ్వండి (బ్రౌజర్ పైభాగంలో), తర్వాత మళ్లీ నొక్కండి." : "Please allow the microphone (top of the browser), then tap again.")
       : (isTe ? "వినలేకపోయాను. మళ్లీ మైక్ నొక్కండి, లేదా ప్రశ్న టైప్ చేయండి." : "Couldn't hear you. Tap the mic again, or type your question.") }]);
-    rec.onend = () => setVoice((v) => (v === "listening" ? null : v));
+    rec.onend = () => { setVoice((v) => (v === "listening" ? null : v)); inputRef.current?.focus(); };
     setVoice("listening");
     rec.start();
   }
@@ -338,9 +352,9 @@ export default function Chat({ user, waOpen, embedded = false }) {
           <div className="voice-bar">
             <span className={`dot ${voice}`} />
             <b>{voice === "greeting" ? t("Rythu Mitra is speaking…", "రైతు మిత్ర మాట్లాడుతోంది…")
-              : voice === "listening" ? t("Listening… speak now", "వింటున్నాను… ఇప్పుడు మాట్లాడండి")
+              : voice === "listening" ? t("Listening… tap the mic when you finish, then press ➤", "వింటున్నాను… మాట్లాడటం అయ్యాక మైక్ నొక్కి, తర్వాత ➤ నొక్కండి")
               : t("Reading the answer…", "జవాబు చదువుతున్నాను…")}</b>
-            {voice === "listening" ? <button onClick={stopVoice}>⏹ {t("Stop", "ఆపండి")}</button>
+            {voice === "listening" ? <button onClick={() => recRef.current?.stop()}>✔ {t("Done talking", "మాట్లాడటం అయింది")}</button>
               : <VoiceControls onStop={stopVoice} />}
           </div>
         )}
@@ -350,6 +364,7 @@ export default function Chat({ user, waOpen, embedded = false }) {
           <input
             value={input}
             onChange={(e) => setInput(e.target.value)}
+            ref={inputRef}
             onKeyDown={(e) => e.key === "Enter" && send()}
             placeholder={te ? "మీ ప్రశ్న టైప్ చేయండి లేదా మైక్ నొక్కండి..." : "Type your question or tap the mic..."}
           />

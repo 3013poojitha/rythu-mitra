@@ -1509,7 +1509,9 @@ def audio_url(text):
 
 def mic_button(lang):
     """A mic button inside the chat box: it says the welcome aloud in the chosen language, then the
-    browser listens (Chrome/Edge), fills the box and sends it. The answer is read back aloud."""
+    browser listens (Chrome/Edge) and writes what the farmer says into the box as they talk. Nothing
+    is sent until they press Enter or ➤ (so a pause does not cut the question off, and they can
+    fix a word first). Tap the mic again to stop listening. The answer is read back aloud."""
     page_js(wait_for='[data-testid="stChatInput"] textarea', code=f"""
 (() => {{
   const box = document.querySelector('[data-testid="stChatInput"]');
@@ -1519,19 +1521,30 @@ def mic_button(lang):
     b = document.createElement('button'); b.className = 'mic-btn'; b.type = 'button'; b.innerHTML = '<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true"><path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2z"/></svg>';
     box.appendChild(b);
     b.onclick = () => {{
+      if (b.classList.contains('rec') && window.rmRec) {{ window.rmRec.stop(); return; }}  // done talking
       const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
       if (!SR) {{ alert(b.dataset.lang === 'te' ? 'మాట్లాడి అడగడానికి Chrome లేదా Edge కావాలి.' : 'Voice input needs Chrome or Edge.'); return; }}
       const te = b.dataset.lang === 'te';
       const listen = () => {{
         const rec = new SR(); rec.lang = te ? 'te-IN' : 'en-IN';
+        rec.continuous = true; rec.interimResults = true;  // keep listening through pauses; show words as they come
+        window.rmRec = rec;
+        const ta = box.querySelector('textarea');
+        const base = ta.value.replace('{VOICE_MARK}', '').trim();  // anything already typed stays
         b.classList.remove('talk'); b.classList.add('rec');
+        b.title = te ? 'మాట్లాడటం అయ్యాక ఇక్కడ నొక్కండి' : 'Tap when you finish talking';
         rec.onresult = (e) => {{
-          const ta = box.querySelector('textarea');
-          Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value').set.call(ta, '{VOICE_MARK}' + e.results[0][0].transcript);
+          let said = '';
+          for (let i = 0; i < e.results.length; i++) said += e.results[i][0].transcript + ' ';
+          // the invisible mark tells the app the question was spoken, so the answer is read aloud
+          Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value').set.call(ta, '{VOICE_MARK}' + (base ? base + ' ' : '') + said.trim());
           ta.dispatchEvent(new Event('input', {{bubbles: true}}));
-          setTimeout(() => box.querySelector('[data-testid="stChatInputSubmitButton"]')?.click(), 150);
         }};
-        rec.onend = () => b.classList.remove('rec');
+        rec.onend = () => {{
+          b.classList.remove('rec'); window.rmRec = null;
+          b.title = te ? 'మాట్లాడండి' : 'Speak';
+          ta.focus();  // ready for Enter
+        }};
         rec.start();
       }};
       // Welcome aloud first (the full welcome once, then a short prompt), then listen

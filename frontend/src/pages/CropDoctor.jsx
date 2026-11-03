@@ -60,9 +60,6 @@ export default function CropDoctor({ user }) {
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState(null);
   const [lib, setLib] = useState(null);
-  const [browse, setBrowse] = useState(null);
-  const [filter, setFilter] = useState("All");
-  const [query, setQuery] = useState(""); // search any crop or problem, English or Telugu
   const [error, setError] = useState("");
   const resultRef = useRef(null);
   const run = useRef(0); // goes up on ⏹, so a check that was stopped is not shown when it ends
@@ -90,7 +87,6 @@ export default function CropDoctor({ user }) {
       const res = await api.diagnose(form);
       if (mine !== run.current) return; // stopped with ⏹
       setResult(res);
-      setBrowse(null);
       setTimeout(() => resultRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
     } catch (e) {
       if (mine === run.current) setError(e.message);
@@ -105,17 +101,11 @@ export default function CropDoctor({ user }) {
     setBusy(false);
   }
 
-  const byId = (id) => lib?.diseases.find((d) => d.id === id);
-  // Typed search wins over the crop buttons: matches the crop or problem name in English or Telugu
-  const q = query.trim().toLowerCase();
-  const libShown = (lib?.diseases || []).filter((d) => (q
-    ? [d.crop, d.crop_te, d.name, d.name_te].some((s) => (s || "").toLowerCase().includes(q))
-    : filter === "All" || d.crop === filter));
-  const shown = browse ? byId(browse) : result?.diagnosis?.disease_id ? byId(result.diagnosis.disease_id) : null;
+  const shown = result?.diagnosis?.disease_id ? lib?.diseases.find((d) => d.id === result.diagnosis.disease_id) : null;
 
   return (
     <div className="stack">
-      <div className="doctor-top">
+      {/* The disease library is on Home, under Weather (DiseaseLibrary below) */}
         <div className="panel">
           <h2>🩺 {t.title}</h2>
           <p className="muted">{t.sub}</p>
@@ -150,40 +140,13 @@ export default function CropDoctor({ user }) {
           </div>
         </div>
 
-        <div className="panel">
-          <h3>{t.library}</h3>
-          <p className="muted small">{t.libSub}</p>
-          <div className="lib-filter">
-            <div className="chips">
-              {["All", ...CROPS].map((c) => <button key={c} className={filter === c && !q ? "on" : ""} onClick={() => { setFilter(c); setQuery(""); }}>{c === "All" ? t.all : tc(c)}</button>)}
-            </div>
-            <input className="lib-search" value={query} onChange={(e) => setQuery(e.target.value)}
-                   placeholder={`🔍 ${te ? "పంట / సమస్య వెతకండి" : "Search crop or problem"}`} />
-          </div>
-          {q && !libShown.length && (
-            <p className="muted lib-none">{te
-              ? <>"<b>{query.trim()}</b>" కు ఈ డెమో సమాచారంలో ఇంకా తెగుళ్లు లేవు. పైన మొక్క ఫోటో పంపండి, లేదా మీ AEO ని అడగండి.</>
-              : <>No problems for "<b>{query.trim()}</b>" in this demo library yet. Send a photo of the plant above, or ask your AEO.</>}</p>
-          )}
-          <div className="lib-list">
-            {libShown.map((d) => (
-              <div key={d.id} className={`lib-item ${shown?.id === d.id ? "sel" : ""}`}
-                   onClick={() => { setBrowse(d.id); setTimeout(() => resultRef.current?.scrollIntoView({ behavior: "smooth" }), 50); }}>
-                <b>{te ? d.name_te : d.name}</b>
-                <small className="muted">{te ? d.crop_te : d.crop} · {tv(d.type)}</small>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
       <div ref={resultRef} />
-      {result?.history_id && !browse && (
+      {result?.history_id && (
         <div className="saved-note">
           {t.savedA}<a onClick={() => (location.hash = "history")}>{t.savedLink}</a>{t.savedB}
         </div>
       )}
-      {result && !browse && result.diagnosis.status !== "detected" && (
+      {result && result.diagnosis.status !== "detected" && (
         <div className="panel" data-read>
           <ReadAloud />
           <h2>{result.diagnosis.name}</h2>
@@ -193,8 +156,55 @@ export default function CropDoctor({ user }) {
       )}
       {shown && (
         <Report d={shown} t={t} te={te} tv={tv} acres={acres} tank={lib.sprayer_tank_l} safety={lib.safety[lang]}
-                diag={!browse ? result?.diagnosis : null} mode={!browse ? result?.mode : null} />
+                diag={result?.diagnosis} mode={result?.mode} />
       )}
+    </div>
+  );
+}
+
+// 📚 Disease library (Home, under Weather): pick a crop, or search any crop or problem name, then tap a
+// problem to see why it happens and the spray plan. Doses are for the farmer's land under that crop
+// (1 acre when they don't grow it). Opens on the farmer's own crop.
+export function DiseaseLibrary({ farmer }) {
+  const { lang, te, tv, tc } = useLang();
+  const t = L[lang];
+  const [lib, setLib] = useState(null);
+  const [filter, setFilter] = useState(() => CROPS.find((c) => farmer?.crops?.includes(c)) || "All");
+  const [query, setQuery] = useState(""); // English or Telugu
+  const [pick, setPick] = useState(null);
+  useEffect(() => { api.diseases().then(setLib); }, []);
+  if (!lib) return null;
+
+  // Typed search wins over the crop buttons
+  const q = query.trim().toLowerCase();
+  const list = lib.diseases.filter((d) => (q
+    ? [d.crop, d.crop_te, d.name, d.name_te].some((s) => (s || "").toLowerCase().includes(q))
+    : filter === "All" || d.crop === filter));
+  const shown = lib.diseases.find((d) => d.id === pick);
+  const acres = shown ? (farmer?.plots || []).filter((p) => p.crop === shown.crop).reduce((a, p) => a + Number(p.area_acres || 0), 0) || 1 : 1;
+  return (
+    <div className="library">
+      <div className="lib-filter">
+        <div className="chips">
+          {["All", ...CROPS].map((c) => <button key={c} className={filter === c && !q ? "on" : ""} onClick={() => { setFilter(c); setQuery(""); }}>{c === "All" ? t.all : tc(c)}</button>)}
+        </div>
+        <input className="lib-search" value={query} onChange={(e) => setQuery(e.target.value)}
+               placeholder={`🔍 ${te ? "పంట / సమస్య వెతకండి" : "Search crop or problem"}`} />
+      </div>
+      {q && !list.length && (
+        <p className="muted lib-none">{te
+          ? <>"<b>{query.trim()}</b>" కు ఈ డెమో సమాచారంలో ఇంకా తెగుళ్లు లేవు. పంట వైద్యుడికి మొక్క ఫోటో పంపండి, లేదా మీ AEO ని అడగండి.</>
+          : <>No problems for "<b>{query.trim()}</b>" in this demo library yet. Send a photo of the plant to Crop Doctor, or ask your AEO.</>}</p>
+      )}
+      <div className="lib-list">
+        {list.map((d) => (
+          <div key={d.id} className={`lib-item ${pick === d.id ? "sel" : ""}`} onClick={() => setPick(pick === d.id ? null : d.id)}>
+            <b>{te ? d.name_te : d.name}</b>
+            <small className="muted">{te ? d.crop_te : d.crop} · {tv(d.type)}</small>
+          </div>
+        ))}
+      </div>
+      {shown && <Report d={shown} t={t} te={te} tv={tv} acres={acres} tank={lib.sprayer_tank_l} safety={lib.safety[lang]} />}
     </div>
   );
 }

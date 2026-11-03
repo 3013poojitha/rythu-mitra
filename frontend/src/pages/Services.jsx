@@ -4,6 +4,7 @@ import { api } from "../api.jsx";
 import { useLang } from "../i18n.jsx";
 import MyFarm from "./MyFarm.jsx";
 import Chat from "./Chat.jsx";
+import { DiseaseLibrary } from "./CropDoctor.jsx";
 
 const statusColor = (s) => (s === "Credited" || s === "Approved" || s === "Resolved" ? "green" : s.startsWith("Rejected") || s === "Escalated" ? "red" : "amber");
 
@@ -123,6 +124,9 @@ export default function Services({ user, refreshUser, waOpen }) {
               </div>
             </Section>
 
+            <Section id="library" openId={openSec} setOpenId={setOpenSec} icon="📚" title={t("Disease library", "తెగుళ్ల సమాచారం")}>
+              <DiseaseLibrary key={farmer.farmer_id} farmer={farmer} />
+            </Section>
           </aside>
         </div>
       )}

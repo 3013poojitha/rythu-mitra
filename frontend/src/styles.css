@@ -674,3 +674,10 @@ label.check input { width: auto; }
 .best-time { background: #fff7e0; border-radius: 8px; padding: 6px 8px; margin: 3px 0; }
 .best-time small { display: block; color: #6b5a2b; font-size: 12.5px; line-height: 1.45; margin-top: 2px; }
 .rem-time { color: #6b5a2b; font-size: 13px; font-weight: 600; }
+
+/* 📚 Disease library in the narrow Home panel: one medicine card per row, the report gets its own box */
+.svc-side .library .lib-search { width: 100%; }
+.svc-side .library .lib-list { max-height: 260px; }
+.svc-side .library .report { padding: 12px; margin-top: 10px; box-shadow: none; border: 1px solid var(--line); }
+.svc-side .library .grid2 { grid-template-columns: 1fr; }
+.svc-side .library .treat-grid { grid-template-columns: 1fr; }

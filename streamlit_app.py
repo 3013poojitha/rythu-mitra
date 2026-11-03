@@ -312,7 +312,10 @@ button[data-variant="segmented_control"][aria-checked="true"] p, button[data-var
 .apply-info { background: #f5f7f4; border-radius: 10px; padding: 10px 12px; font-size: 13px; margin-bottom: 8px; }
 .apply-info p { margin: 0 0 6px; }
 .st-key-lib_crop_row { flex-wrap: wrap; }
-.st-key-lib_crop_row > div { width: auto !important; flex: 0 1 auto !important; }
+/* 📚 library in the narrow Home panel: crop buttons wrap onto more lines, the search box under them */
+.st-key-lib_crop_row > div { width: 100% !important; flex: 1 1 100% !important; min-width: 0; }
+.st-key-lib_crop_row [data-testid="stButtonGroup"] * { flex-wrap: wrap; }
+.st-key-svc_side .grid2, .st-key-svc_side .treat-grid { grid-template-columns: 1fr; }
 .st-key-lib_q input { border-radius: 99px; font-size: 14px; }
 .setup-head { text-align: center; }
 .setup-head p { max-width: 560px; margin: 6px auto; color: #5b6b5f; }
@@ -2012,30 +2015,40 @@ def page_doctor(user):
             else:
                 report(diseases.INDEX[d["disease_id"]], acres, lang, confidence=d["confidence"], key="diag", slot=st.container())
 
-    with st.container(key="panel_library"):
-        st.markdown("### 📚 " + T("Disease library", "తెగుళ్ల సమాచారం"))
-        crops = sorted({d["crop"] for d in diseases.DISEASES})
-        # Crop buttons, and a small search beside them for any crop or problem name (English or Telugu)
-        with st.container(horizontal=True, vertical_alignment="bottom", gap="small", key="lib_crop_row"):
-            pick_crop = (st.pills(T("Crop", "పంట"), crops, default=crops[0], key="lib_crop", format_func=crop_name)
-                         or crops[0])
-            query = st.text_input(T("Search", "వెతకండి"), key="lib_q", label_visibility="collapsed", width=230,
-                                  placeholder="🔍 " + T("Search crop or problem", "పంట / సమస్య వెతకండి")).strip()
-        label = lambda d: f"{d['name_te']} ({V(d['type'])})" if is_te() else f"{d['name']} ({d['type']})"
-        if query:
-            found, crop = diseases.search(query)
-            if not found:
-                name = crop_name(crop) if crop else query
-                st.info(T(f"No problems for **{name}** in this demo library yet. Send a photo of the plant to Crop Doctor "
-                          "above, or ask your AEO.",
-                          f"**{name}** కు ఈ డెమో సమాచారంలో ఇంకా తెగుళ్లు లేవు. పైన పంట వైద్యుడికి మొక్క ఫోటో పంపండి, "
-                          "లేదా మీ AEO ని అడగండి."))
-                return
-            dz = st.selectbox(T(f"Problem · {len(found)} found", f"సమస్య · {len(found)} దొరికాయి"), found, key="lib_dz_q",
-                              format_func=lambda d: f"{crop_name(d['crop'])} · {label(d)}")
-        else:
-            options = [d for d in diseases.DISEASES if d["crop"] == pick_crop]
-            dz = st.selectbox(T("Problem", "సమస్య"), options, key="lib_dz", format_func=label)
+
+def disease_library(f):
+    """📚 Disease library (Home, under Weather): pick a crop and a problem, or search any crop or
+    problem name, to see why it happens and the spray plan. Doses are for the farmer's land under
+    that crop (1 acre when they don't grow it)."""
+    lang = ss.ui_lang
+    crops = sorted({d["crop"] for d in diseases.DISEASES})
+    mine = next((c for c in f["crops"] if c in crops), crops[0])  # opens on the farmer's own crop
+    fid = f["farmer_id"]
+    # Crop buttons, and a small search under them for any crop or problem name (English or Telugu)
+    with st.container(horizontal=True, vertical_alignment="bottom", gap="small", key="lib_crop_row"):
+        pick_crop = (st.pills(T("Crop", "పంట"), crops, default=mine, key=f"lib_crop_{fid}", format_func=crop_name)
+                     or mine)
+        query = st.text_input(T("Search", "వెతకండి"), key="lib_q", label_visibility="collapsed",
+                              placeholder="🔍 " + T("Search crop or problem", "పంట / సమస్య వెతకండి")).strip()
+    label = lambda d: f"{d['name_te']} ({V(d['type'])})" if is_te() else f"{d['name']} ({d['type']})"
+    choose = T("Choose a problem", "సమస్య ఎంచుకోండి")
+    if query:
+        found, crop = diseases.search(query)
+        if not found:
+            name = crop_name(crop) if crop else query
+            st.info(T(f"No problems for **{name}** in this demo library yet. Send a photo of the plant to Crop Doctor, "
+                      "or ask your AEO.",
+                      f"**{name}** కు ఈ డెమో సమాచారంలో ఇంకా తెగుళ్లు లేవు. పంట వైద్యుడికి మొక్క ఫోటో పంపండి, "
+                      "లేదా మీ AEO ని అడగండి."))
+            return
+        dz = st.selectbox(T(f"Problem · {len(found)} found", f"సమస్య · {len(found)} దొరికాయి"), found, key="lib_dz_q",
+                          index=None, placeholder=choose, format_func=lambda d: f"{crop_name(d['crop'])} · {label(d)}")
+    else:
+        options = [d for d in diseases.DISEASES if d["crop"] == pick_crop]
+        dz = st.selectbox(T("Problem", "సమస్య"), options, key=f"lib_dz_{pick_crop}", index=None, placeholder=choose,
+                          format_func=label)
+    if dz:
+        acres = sum(pl["area_acres"] for pl in f["plots"] if pl["crop"] == dz["crop"]) or 1.0
         report(dz, acres, lang, key=f"lib_{dz['id']}", slot=st.container())
 
 
@@ -2379,7 +2392,7 @@ def side_section(sid, label):
 
 
 def side_sections(f, fid):
-    """Applications, payments, grievances, weather and advisory: one row each (icon, name, a short
+    """Advisory, applications, payments, grievances, weather and the disease library: one row each (icon, name, a short
     hint and ›). Tapping a row opens what it contains."""
     e = html.escape
     pill = {"Credited": "green", "Approved": "green", "Resolved": "green", "Escalated": "red"}
@@ -2462,6 +2475,10 @@ def side_sections(f, fid):
             days.append(f'<div class="wday" title="{e(w["condition_te"] if is_te() else w["condition"])}"><small>{day_label(d)}</small>'
                         f'<div class="wicon">{icon}</div><b>{w["max_c"]}°</b><small>{w["min_c"]}°</small>{rain}</div>')
         H(f'<div class="weather">{"".join(days)}</div>')
+
+    with side_section("library", f"📚 {T('Disease library', 'తెగుళ్ల సమాచారం')}"):
+        if ss.get("side_open") == "library":  # the spray plans are long: built only when open
+            disease_library(f)
 
 
 def next_crops(plans):

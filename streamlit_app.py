@@ -346,7 +346,10 @@ html[data-rm-voice="wait"] .st-key-voice_bar_chat .rm-on, html:not([data-rm-voic
 .st-key-voice_bar_chat [data-testid="stMarkdown"] { flex: 1 1 auto; width: auto !important; }
 .st-key-voice_bar_chat b { color: #1b5e20; font-size: 14px; }
 [class*="st-key-doc_pic_"] { position: relative; }
-[class*="st-key-doc_pic_"] img, [class*="st-key-doc_pic_"] video { border-radius: 10px; height: 110px; object-fit: cover; }
+[class*="st-key-doc_pic_"]:has(img) { width: 110px !important; flex: 0 0 110px !important; }  /* photos; videos keep 180 px */
+[class*="st-key-doc_pic_"] [data-testid="stImage"], [class*="st-key-doc_pic_"] [data-testid="stElementContainer"] { width: 110px !important; }
+[class*="st-key-doc_pic_"] img { width: 110px !important; height: 110px !important; max-width: none; object-fit: cover; border-radius: 10px; }
+[class*="st-key-doc_pic_"] video { border-radius: 10px; height: 110px; object-fit: cover; }
 [class*="st-key-doc_pic_"] [class*="st-key-doc_rm_"] { position: absolute; top: 4px; right: 4px; width: auto; z-index: 2; }
 [class*="st-key-doc_rm_"] button { min-height: 0; width: 26px; height: 26px; padding: 0; border-radius: 50%;
   background: rgba(0,0,0,.6) !important; border: none; color: #fff !important; }
@@ -1801,7 +1804,7 @@ def page_doctor(user):
                         if media.is_video(f.type, f.name):
                             st.video(f.getvalue(), width=180)
                         else:
-                            st.image(f.getvalue(), width=110)
+                            st.image(f.getvalue(), width=440)  # sent sharp, shown 110 px square (CSS)
                         st.button("✕", key=f"doc_rm_{f.id}", on_click=remove_doc_file, args=(f.id,),
                                   help=T("Remove", "తీసేయండి"))
                 with st.container(key="doc_add", width="content"):

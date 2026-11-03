@@ -9,12 +9,24 @@ let turn = 0; // goes up on every stop/start, so a voice that arrives after a st
 
 export function stopSpeaking() {
   turn += 1;
+  window.speechSynthesis?.resume(); // Chrome keeps a paused voice paused after cancel(), so the next one would be silent
   window.speechSynthesis?.cancel();
   if (audio) {
     audio.onended = null;
     audio.pause();
     audio = null;
   }
+}
+
+// Pause / carry on with what is being read (the Gemini audio or the browser voice)
+export function pauseSpeaking() {
+  if (audio) audio.pause();
+  else window.speechSynthesis?.pause();
+}
+
+export function resumeSpeaking() {
+  if (audio) audio.play().catch(() => {});
+  else window.speechSynthesis?.resume();
 }
 
 // The clearest voice the browser has: Telugu needs a real Telugu voice; for English prefer the

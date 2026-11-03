@@ -532,6 +532,8 @@ label.check input { width: auto; }
 .today-icon { font-size: 20px; line-height: 1.2; }
 .today-actions { display: flex; gap: 10px; margin-top: 14px; }
 .today-actions button { flex: 1; padding: 12px; font-size: 16px; }
+.today-actions button.voice-icon { flex: 0 0 48px; padding: 0; font-size: 18px; }
+.today-actions button.voice-icon:disabled { opacity: .4; cursor: default; }
 
 /* ---- 🔔 Notification bell (remedy questions) ---- */
 .bell { position: relative; }

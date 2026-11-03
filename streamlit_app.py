@@ -1114,9 +1114,12 @@ def today_update(user):
           + f'<div class="today-lines">{lines(u["crop_lines"])}</div>')
         st.caption(T("Crop reminders are demo timings. Check with your AEO before using fertilizer or medicine.",
                      "పంట గుర్తుచేతలు డెమో సమయాలు మాత్రమే. ఎరువు లేదా మందు వాడే ముందు మీ AEO ని అడగండి."))
-        c1, c2 = st.columns(2)
+        c1, cp, cs, c2 = st.columns([3, 0.8, 0.8, 3.4], gap="small", vertical_alignment="center")
         if c1.button("🔊 " + T("Read aloud", "చదివి వినిపించండి"), width="stretch", key="today_speak"):
             speak_aloud(today.speech(u, lang), lang)
+        # Small pause / stop icons beside Read aloud; they work in the page itself (see rmPauseOrGo in SAY_JS)
+        cp.button("⏸", key="voice_pause_today", width="stretch", help=T("Pause / continue", "ఆపి ఉంచండి / కొనసాగించండి"))
+        cs.button("⏹", key="voice_stop_today", width="stretch", help=T("Stop", "ఆపండి"))
         if c2.button("✅ " + T("Done", "సరే"), type="primary", width="stretch", key="today_done"):
             ss.stop_voice = True
             st.rerun()
@@ -1439,7 +1442,31 @@ window.rmVoice = (lang) => {
     + (/en[-_]in/i.test(v.lang) ? 3 : 0) + (/female|neerja|aria|jenny|zira|samantha/i.test(v.name) ? 1 : 0);
   return vs.filter((v) => /^en/i.test(v.lang)).sort((a, b) => score(b) - score(a))[0];
 };
-window.rmQuiet = () => { window.speechSynthesis && speechSynthesis.cancel(); if (window.rmAudio) { window.rmAudio.onended = null; window.rmAudio.pause(); window.rmAudio = null; } };
+window.rmQuiet = () => {
+  if (window.speechSynthesis) { speechSynthesis.resume(); speechSynthesis.cancel(); }  // Chrome keeps a paused voice paused after cancel()
+  if (window.rmAudio) { window.rmAudio.onended = null; window.rmAudio.pause(); window.rmAudio = null; }
+  rmPaused(false);
+};
+// ⏸ / ▶ beside Read aloud: pause and carry on (the Gemini audio or the browser voice)
+window.rmPaused = (on) => {
+  window.rmIsPaused = on;
+  document.querySelectorAll('[class*="st-key-voice_pause"] button p').forEach((p) => { p.textContent = on ? '▶' : '⏸'; });
+};
+window.rmPauseOrGo = () => {
+  const a = window.rmAudio, s = window.speechSynthesis;
+  if (window.rmIsPaused) { a ? a.play().catch(() => {}) : s && s.resume(); rmPaused(false); }
+  else if (a || (s && s.speaking)) { a ? a.pause() : s.pause(); rmPaused(true); }
+};
+// The icons work in the page only: catch the click before Streamlit sees it, so the pop-up does not reload
+if (!window.rmVoiceKeys) {
+  window.rmVoiceKeys = true;
+  window.addEventListener('click', (e) => {
+    const pause = e.target.closest('[class*="st-key-voice_pause"]'), stop = e.target.closest('[class*="st-key-voice_stop"]');
+    if (!pause && !stop) return;
+    e.stopPropagation(); e.preventDefault();
+    pause ? rmPauseOrGo() : rmQuiet();
+  }, true);
+}
 window.rmSay = (text, lang, url, onEnd) => {
   rmQuiet();
   const done = () => onEnd && onEnd();

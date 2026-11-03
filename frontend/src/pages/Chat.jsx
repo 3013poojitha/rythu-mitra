@@ -319,9 +319,10 @@ export default function Chat({ user, waOpen, embedded = false }) {
                 <div className="meta">
                   <span className="tag stage">{te ? STAGE_TE[m.stage] || m.stage : m.stage}</span>
                   {m.sources?.map((s) => <span key={s} className="tag">{te ? sourceTe(s) : s}</span>)}
-                  <span className="tag model">{m.model} · {m.latency_ms} ms · {m.tokens_out} {t("tokens", "టోకెన్లు")}</span>
-                  <button className="link" onClick={() => speak(m.text, m.lang || lang)} title={t("Read aloud", "చదివి వినిపించండి")}>🔊</button>
                 </div>
+              )}
+              {m.role === "bot" && m.stage && (
+                <button className="say-btn" onClick={() => talk(textOf(m), m.lang || lang)}>🔊 {t("Read aloud", "చదివి వినిపించండి")}</button>
               )}
               {m.note && <div className="note">{te ? noteTe(m.note) : m.note}</div>}
             </div>

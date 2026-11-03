@@ -328,6 +328,11 @@ button[data-variant="segmented_control"][aria-checked="true"] p, button[data-var
 .msg-media img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 8px; display: block; }
 .msg-media .mm span { position: absolute; left: 4px; bottom: 4px; background: rgba(0,0,0,.55); border-radius: 6px; padding: 0 4px; font-size: 13px; }
 .st-key-doc_thumbs { flex-wrap: wrap; }
+/* 🔊 Read aloud under each chat answer */
+[class*="st-key-say_"] { margin-top: -6px; }
+[class*="st-key-say_"] button { min-height: 0; padding: 3px 12px; border-radius: 16px; border: none;
+  background: #e8f3ea; color: #1b5e20; }
+[class*="st-key-say_"] button p { font-size: 13px !important; font-weight: 600; }
 /* ⏸ / ⏹ for reading aloud: only while something is being read (html[data-rm-voice], set by rmSay) */
 html:not([data-rm-voice]) [class*="st-key-voice_pause_"], html:not([data-rm-voice]) [class*="st-key-voice_stop_"],
 html:not([data-rm-voice]) .st-key-voice_bar_chat { display: none !important; }
@@ -1298,11 +1303,13 @@ def chat_window(user, main, channel, lang, provider, farmer_id, clicked, quick=F
                     for q in QUICK[lang]:
                         if st.button(q, key=f"q_{q}"):
                             clicked = q
-            for m in ss.chat:
-                show_message(m)
+            for i, m in enumerate(ss.chat):
+                show_message(m, i)
         with st.container(horizontal=True, gap="small", vertical_alignment="center", key="voice_bar_chat"):
             H('<b>🔊 ' + T("Reading aloud…", "చదివి వినిపిస్తోంది…") + '</b>')
             voice_icons("chat")
+        if ss.get("say_msg"):  # 🔊 under an answer was tapped (outside the scrolling box, so the voice script runs)
+            speak_aloud(ss.pop("say_msg"), lang)
         sent = st.chat_input("మీ ప్రశ్న టైప్ చేయండి లేదా మైక్ నొక్కండి... 📎 ఫోటో కూడా పంపవచ్చు" if lang == "te"
                              else "Type your question or tap the mic... 📎 or send a crop photo",
                              accept_file="multiple", file_type=MEDIA_TYPES, key="chat_box")
@@ -1585,7 +1592,12 @@ def voice_note(text):
             f'<small>{secs // 60}:{secs % 60:02d}</small></div>')
 
 
-def show_message(m):
+def read_answer(m):
+    ss.say_msg = msg_text(m)
+
+
+def show_message(m, i=None):
+    """One chat message. i (its place in ss.chat): answers get a 🔊 button to hear them read aloud."""
     if m["role"] == "user":
         img = f'<img src="{m["image"]}" class="thumb">' if m.get("image") else ""
         if m.get("media"):
@@ -1606,16 +1618,16 @@ def show_message(m):
         H(f'<div class="msg bot fu">{rich(msg_text(m))}</div>')
         return
     stage = STAGE_TE.get(m["stage"], m["stage"]) if is_te() else m["stage"]
-    model = m["model"].replace("(mock)", "(మాక్)") if is_te() else m["model"]
     tags = (f'<span class="tag stage">{html.escape(stage)}</span>'
-            + "".join(f'<span class="tag">{html.escape(source_label(s))}</span>' for s in m["sources"])
-            + f'<span class="tag model">{model} · {m["latency_ms"]} ms · {m["tokens_out"]} {T("tokens", "టోకెన్లు")}</span>')
+            + "".join(f'<span class="tag">{html.escape(source_label(s))}</span>' for s in m["sources"]))
     note = m.get("note") or ""
     if note.startswith("Live call failed") and is_te():
         note = "లైవ్ AI పనిచేయలేదు; మాక్ సమాధానం చూపిస్తున్నాం."
     note = f'<div class="note">{html.escape(note)}</div>' if note else ""
     vn = voice_note(msg_text(m)) if m.get("voice") else ""
     H(f'<div class="msg bot">{vn}{rich(msg_text(m))}<div class="meta">{tags}</div>{note}</div>')
+    if i is not None:
+        st.button("🔊 " + T("Read aloud", "చదివి వినిపించండి"), key=f"say_{i}", on_click=read_answer, args=(m,))
 
 
 # ---------------------------------------------------------------------------

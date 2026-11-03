@@ -536,6 +536,8 @@ label.check input { width: auto; }
 .today-actions button { flex: 1; padding: 12px; font-size: 16px; }
 /* ⏸ / ⏹ beside Read aloud and in the chat's voice bar (shown only while reading) */
 .today-actions button.voice-icon, .consent-actions button.voice-icon { flex: 0 0 48px; min-width: 0; padding: 0; font-size: 18px; }
+.say-btn { display: inline-block; margin-top: 6px; padding: 3px 12px; border-radius: 16px; border: 0;
+  background: #e8f3ea; color: var(--brand-dark); font-size: 13px; font-weight: 600; }
 .voice-bar .voice-icon { width: 36px; height: 32px; padding: 0; font-size: 15px; }
 
 /* ---- 🔔 Notification bell (remedy questions) ---- */

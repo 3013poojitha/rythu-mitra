@@ -2401,7 +2401,7 @@ def side_sections(f, fid):
 
     if ss.get("applied"):
         ss.side_open = "apps"  # stays open to show the new application
-    with side_section("apps", f"📋 {T('Scheme applications', 'పథకాల దరఖాస్తులు')}  ·  {len(apps)}"):
+    with side_section("apps", f"📋 {T('Scheme applications', 'పథకాల దరఖాస్తులు')}"):
         apps_html = "".join(
             f'<div class="side-row"><span class="grow"><b>{e(a["scheme_te"] if is_te() else a["scheme"])}</b>'
             f'<span class="pay-amt"><span class="pill">{e(V(a["status"]))}</span>'
@@ -2419,8 +2419,7 @@ def side_sections(f, fid):
         payments(f, read=True)
 
     mine = [g for g in data.GRIEVANCES if g["farmer_id"] == fid]
-    still_open = sum(g["status"] != "Resolved" for g in mine)
-    with side_section("griev", f"📣 {T('Grievances', 'ఫిర్యాదులు')}  ·  {still_open} {T('open', 'పెండింగ్')}"):
+    with side_section("griev", f"📣 {T('Grievances', 'ఫిర్యాదులు')}"):
         read_btn(T("Grievances. ", "ఫిర్యాదులు. ") + (". ".join(
             f'{V(g["category"])}, {day_label(date.fromisoformat(g["created_on"]))}, {V(g["status"])}' for g in mine)
             or T("No grievances yet.", "ఇంకా ఫిర్యాదులు లేవు.")), "griev")

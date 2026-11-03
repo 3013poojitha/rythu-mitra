@@ -75,7 +75,7 @@ export default function Services({ user, refreshUser, waOpen }) {
               {farmer.next_crops?.length > 0 && <NextCrops plans={farmer.next_crops} />}
             </Section>
 
-            <Section id="apps" openId={openSec} setOpenId={setOpenSec} icon="📋" title={t("Scheme applications")} hint={farmer.applications.length}>
+            <Section id="apps" openId={openSec} setOpenId={setOpenSec} icon="📋" title={t("Scheme applications")}>
               {farmer.applications.map((a) => (
                 <div key={a.app_id} className="side-row">
                   <span className="grow"><b>{te && a.scheme_te ? a.scheme_te : a.scheme}</b><small className="muted">{a.app_id}</small></span>
@@ -92,8 +92,7 @@ export default function Services({ user, refreshUser, waOpen }) {
               <Payments farmer={farmer} />
             </Section>
 
-            <Section id="griev" openId={openSec} setOpenId={setOpenSec} icon="📣" title={t("Grievances")}
-                     hint={`${farmer.grievances.filter((g) => g.status !== "Resolved").length} ${t("open", "పెండింగ్")}`}>
+            <Section id="griev" openId={openSec} setOpenId={setOpenSec} icon="📣" title={t("Grievances")}>
               {farmer.grievances.length ? farmer.grievances.map((g) => (
                 <div key={g.grievance_id} className="row between griev">
                   <span><b>{g.grievance_id}</b> {tv(g.category)}<br /><small className="muted">{date(g.created_on)} · {tv(g.channel)}</small></span>

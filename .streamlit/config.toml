@@ -14,3 +14,7 @@ toolbarMode = "viewer"
 
 [browser]
 gatherUsageStats = false
+
+[server]
+# static/voice/: the Telugu read-aloud voice, saved piece by piece so reading starts quickly
+enableStaticServing = true

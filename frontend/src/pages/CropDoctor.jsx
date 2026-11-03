@@ -64,6 +64,7 @@ export default function CropDoctor({ user }) {
   const [query, setQuery] = useState(""); // search any crop or problem, English or Telugu
   const [error, setError] = useState("");
   const resultRef = useRef(null);
+  const run = useRef(0); // goes up on ⏹, so a check that was stopped is not shown when it ends
   const t = L[lang];
 
   useEffect(() => {
@@ -76,6 +77,7 @@ export default function CropDoctor({ user }) {
   }
 
   async function detect() {
+    const mine = ++run.current;
     setBusy(true);
     setError("");
     const form = mediaForm(media);
@@ -85,14 +87,21 @@ export default function CropDoctor({ user }) {
     form.append("acres", acres);
     try {
       const res = await api.diagnose(form);
+      if (mine !== run.current) return; // stopped with ⏹
       setResult(res);
       setBrowse(null);
       setTimeout(() => resultRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
     } catch (e) {
-      setError(e.message);
+      if (mine === run.current) setError(e.message);
     } finally {
-      setBusy(false);
+      if (mine === run.current) setBusy(false);
     }
+  }
+
+  // ⏹ beside the button while checking: stop, add another photo, check again
+  function stopDetect() {
+    run.current += 1;
+    setBusy(false);
   }
 
   const byId = (id) => lib?.diseases.find((d) => d.id === id);
@@ -134,7 +143,10 @@ export default function CropDoctor({ user }) {
 
           <MediaPicker items={media} onChange={pick} />
           {error && <div className="error">{terr(error)}</div>}
-          <button className="primary full" disabled={!media.length || busy} onClick={detect}>{busy ? t.detecting : t.detect}</button>
+          <div className="detect-row">
+            <button className="primary full" disabled={!media.length || busy} onClick={detect}>{busy ? t.detecting : t.detect}</button>
+            {busy && <button className="detect-stop" onClick={stopDetect} title={te ? "ఆపండి" : "Stop"}>⏹</button>}
+          </div>
         </div>
 
         <div className="panel">

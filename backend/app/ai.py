@@ -128,10 +128,13 @@ def transcribe(audio_bytes, filename="voice.wav", lang="te"):
 _speech_cache = {}  # (lang, text) -> wav bytes, so the same text is not paid for twice
 _speech_busy = {}  # (lang, text) -> threading.Event while that audio is being made
 speech_error = [""]  # why the last voice request failed (shown by the ?debug=1 check)
+_speech_slots = __import__("threading").Semaphore(4)  # voice requests at the same time (free keys refuse many)
 
 
-def speak(text, lang="te"):
+def speak(text, lang="te", first=False):
     """Text read aloud by a real voice, as WAV bytes (Gemini; needs its key), or None.
+    first: the opening piece of something a farmer just asked to hear - it does not wait for a free
+    slot behind pieces being made in advance (the Today pop-up's), so reading starts quickly.
     Browsers on Windows/Chrome usually have no Telugu voice and read Telugu letters with an
     English voice, which sounds wrong - so Telugu is spoken by Gemini when the key is set."""
     if not is_live("gemini"):
@@ -149,7 +152,10 @@ def speak(text, lang="te"):
         return _speech_cache.get(key)
     _speech_busy[key] = threading.Event()
     try:
-        return _make_speech(key, text, lang)
+        if first:
+            return _make_speech(key, text, lang)
+        with _speech_slots:
+            return _make_speech(key, text, lang)
     finally:
         _speech_busy.pop(key).set()
 
@@ -172,12 +178,15 @@ def _make_speech(key, text, lang):
             try:
                 with urllib.request.urlopen(req, timeout=90) as r:
                     res = json.load(r)
+                pcm = base64.b64decode(res["candidates"][0]["content"]["parts"][0]["inlineData"]["data"])
                 break
             except urllib.error.HTTPError as e:
                 if e.code not in (429, 503) or attempt == 2:
                     raise
                 time.sleep(6 * (attempt + 1))
-        pcm = base64.b64decode(res["candidates"][0]["content"]["parts"][0]["inlineData"]["data"])
+            except (KeyError, IndexError):  # now and then an answer comes back without sound: ask again
+                if attempt == 2:
+                    raise
     except Exception as e:
         speech_error[0] = f"{getattr(e, 'code', '')} {e.read().decode()[:300] if hasattr(e, 'read') else str(e)[:300]}"
         return None
@@ -193,13 +202,33 @@ def _make_speech(key, text, lang):
     return _speech_cache[key]
 
 
-def speech_parts(text, size=140):
-    """Text cut into short pieces to voice one by one: the first sentence alone (its voice is ready
-    in about 4 seconds, so reading starts quickly), then sentences grouped up to about `size` letters.
-    Gemini takes ~14 s to voice 260 Telugu letters in one go, but makes all the pieces at the same
-    time in ~7 s, and the later pieces are ready before the earlier ones finish playing."""
+MONTHS = {"te": ["జనవరి", "ఫిబ్రవరి", "మార్చి", "ఏప్రిల్", "మే", "జూన్", "జులై", "ఆగస్టు", "సెప్టెంబర్",
+                  "అక్టోబర్", "నవంబర్", "డిసెంబర్"],
+          "en": ["January", "February", "March", "April", "May", "June", "July", "August", "September",
+                 "October", "November", "December"]}
+
+
+def speech_parts(text, size=110, lang="te"):
+    """Text cut into short pieces to voice one by one. The first piece is only the opening words
+    (up to the first comma or colon), so its voice is ready in a few seconds and reading starts
+    quickly; then lines and sentences grouped up to about `size` letters. Gemini voices the pieces
+    at the same time, and the later ones are ready before the earlier ones finish playing.
+    Dates like 2026-11-03 are said as "3 నవంబర్", not read out digit by digit."""
     import re
-    sentences = [s for s in re.split(r"(?<=[.!?।])\s+", " ".join(str(text or "").split())) if s]
+    text = re.sub(r"\b(\d{4})-(\d{2})-(\d{2})\b",
+                  lambda m: f"{int(m[3])} {MONTHS.get(lang, MONTHS['en'])[int(m[2]) - 1]}"
+                  if 1 <= int(m[2]) <= 12 else m[0], str(text or ""))
+    # Gemini gives no sound at all for "°C", so say the units in words
+    te = lang == "te"
+    text = re.sub(r"\s*°\s*C?", " డిగ్రీలు" if te else " degrees", text)
+    text = text.replace("మి.మీ.", "మిల్లీమీటర్లు.").replace("మి.మీ", "మిల్లీమీటర్లు")
+    lines = [" ".join(line.replace("•", " ").split()) for line in text.splitlines()]
+    sentences = [s for line in lines if line for s in re.split(r"(?<=[.!?।])\s+", line) if s]
+    if not sentences:
+        return []
+    first = re.match(r"(.{12,60}?[,:])\s+(.+)", sentences[0])  # a long first sentence: its opening words alone
+    if first:
+        sentences[:1] = [first[1], first[2]]
     parts, cur = sentences[:1], ""
     for s in sentences[1:]:
         if cur and len(cur) + len(s) > size:
@@ -214,7 +243,7 @@ def speak_parts(text, lang="te"):
     """Voice for every piece of the text (see speech_parts), all made at the same time.
     A list of WAV bytes (None for a piece that failed)."""
     from concurrent.futures import ThreadPoolExecutor
-    parts = speech_parts(text)
+    parts = speech_parts(text, lang=lang)
     with ThreadPoolExecutor(max(1, min(len(parts), 8))) as pool:
         return list(pool.map(lambda p: speak(p, lang), parts))
 
@@ -226,10 +255,10 @@ def speak_later(text, lang="te", whole=False):
     if not is_live("gemini"):
         return None
     import threading
-    for piece in [text] if whole else speech_parts(text):
+    for n, piece in enumerate([text] if whole else speech_parts(text, lang=lang)):
         key = (lang, " ".join(str(piece or "").split())[:3000])
         if key not in _speech_cache and key not in _speech_busy:
-            threading.Thread(target=speak, args=(piece, lang), daemon=True).start()
+            threading.Thread(target=speak, args=(piece, lang, n == 0), daemon=True).start()
     return _speech_cache.get((lang, " ".join(str(text or "").split())[:3000])) if whole else None
 
 

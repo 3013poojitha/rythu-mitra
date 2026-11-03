@@ -14,6 +14,7 @@ import json
 import os
 import re
 import sys
+import time
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
 from datetime import date, datetime, timedelta
@@ -337,6 +338,8 @@ button[data-variant="segmented_control"][aria-checked="true"] p, button[data-var
 html:not([data-rm-voice]) [class*="st-key-voice_pause_"], html:not([data-rm-voice]) [class*="st-key-voice_stop_"],
 html:not([data-rm-voice]) .st-key-voice_bar_chat { display: none !important; }
 [class*="st-key-voice_row_"] { flex-wrap: nowrap; }
+html[data-rm-voice="wait"] [class*="st-key-voice_pause_"] { display: none !important; }
+html[data-rm-voice="wait"] .st-key-voice_bar_chat .rm-on, html:not([data-rm-voice="wait"]) .st-key-voice_bar_chat .rm-wait { display: none; }
 [class*="st-key-voice_pause_"], [class*="st-key-voice_stop_"] { width: auto !important; flex: 0 0 auto !important; }
 [class*="st-key-voice_pause_"] button, [class*="st-key-voice_stop_"] button { min-width: 40px; padding: 0 8px; }
 .st-key-voice_bar_chat { background: #eef7f0; border-radius: 10px; padding: 4px 10px; }
@@ -351,6 +354,20 @@ html:not([data-rm-voice]) .st-key-voice_bar_chat { display: none !important; }
 .st-key-doc_add [data-testid="stFileUploaderDropzone"] { width: 110px; height: 110px; min-height: 0; padding: 0 !important;
   border: 2px dashed #9bb59f; border-radius: 10px; background: #f6f9f5; justify-content: center; }
 .st-key-doc_add [data-testid="stFileUploaderDropzoneInstructions"] { display: none !important; }
+/* ⏹ beside "Looking at the leaves..." on Crop Doctor */
+.st-key-doc_go_row { flex-wrap: nowrap; }
+.st-key-doc_stop { width: auto !important; flex: 0 0 auto !important; }
+.st-key-doc_stop button { min-width: 52px; font-size: 18px; }
+/* the whole tile is the button, with the ＋ in its middle (no upload icon beside it) */
+.st-key-doc_add [data-testid="stFileUploaderDropzone"] > span { width: 100%; height: 100%; display: flex; }
+.st-key-doc_add [data-testid="stFileUploaderDropzone"] button [data-testid="stIconMaterial"],
+.st-key-doc_add [data-testid="stFileUploaderDropzone"] button span:has(> [data-testid="stIconMaterial"]) { display: none !important; }
+.st-key-doc_add [data-testid="stFileUploaderDropzone"] button > div,
+.st-key-doc_add [data-testid="stFileUploaderDropzone"] button > div > span { width: 100%; height: 100%; display: flex;
+  align-items: center; justify-content: center; }
+.st-key-doc_add [data-testid="stFileUploaderDropzone"] button [data-testid="stMarkdownContainer"],
+.st-key-doc_add [data-testid="stFileUploaderDropzone"] button p { display: flex; align-items: center; justify-content: center;
+  height: auto; margin: 0; line-height: 1; }
 .st-key-doc_thumbs > *:has(.st-key-doc_add), .st-key-doc_add, .st-key-doc_add * { max-width: 110px; flex: 0 0 auto !important; min-width: 0 !important; }
 .st-key-doc_add [data-testid="stFileUploaderDropzone"] button { background: transparent !important; border: none !important;
   width: 100%; height: 100%; padding: 0 !important; }
@@ -1306,7 +1323,8 @@ def chat_window(user, main, channel, lang, provider, farmer_id, clicked, quick=F
             for i, m in enumerate(ss.chat):
                 show_message(m, i)
         with st.container(horizontal=True, gap="small", vertical_alignment="center", key="voice_bar_chat"):
-            H('<b>🔊 ' + T("Reading aloud…", "చదివి వినిపిస్తోంది…") + '</b>')
+            H('<b class="rm-on">🔊 ' + T("Reading aloud…", "చదివి వినిపిస్తోంది…") + '</b><b class="rm-wait">⏳ '
+              + T("Preparing voice…", "గొంతు సిద్ధమవుతోంది…") + '</b>')
             voice_icons("chat")
         if ss.get("say_msg"):  # 🔊 under an answer was tapped (outside the scrolling box, so the voice script runs)
             speak_aloud(ss.pop("say_msg"), lang)
@@ -1442,14 +1460,41 @@ def speak_aloud(text, lang):
     reads Telugu letters with an English voice, which sounds wrong - so Telugu is spoken by Gemini
     (when its key is set); otherwise the browser's own Telugu voice if it has one (Edge does)."""
     clean = re.sub(r"\*\*|[•💡➡️📄⚠️]", "", text)
-    urls = []
-    if lang == "te":
-        with st.spinner("గొంతు సిద్ధమవుతోంది…"):
-            # made in short pieces, all at the same time (~7 s instead of ~14 s; often ready already,
-            # as the pop-ups start them when they open), then played one after another
-            urls = ["data:audio/wav;base64," + base64.b64encode(a).decode() for a in ai.speak_parts(clean, lang) if a]
+    urls = voice_files(clean) if lang == "te" and ai.is_live("gemini") else []
     ss.say_n = ss.get("say_n", 0) + 1  # a new script every time: Streamlit skips one it has just run
     page_js(SAY_JS + f"rmSay({json.dumps(clean)}, '{lang}', {json.dumps(urls)}); // {ss.say_n}")
+
+
+# The Telugu voice, piece by piece, as files the page plays as soon as each one is ready
+# (.streamlit/config.toml: enableStaticServing; served at app/static/voice/...). So reading starts
+# when the first sentence is voiced (~3 s) instead of waiting for a long answer to be voiced whole.
+VOICE_DIR = Path(__file__).parent / "static" / "voice"
+
+
+def voice_files(text):
+    """Start making the voice for each piece of the text (ai.speech_parts) in the background,
+    saved as a file; returns the page addresses of the pieces, in order."""
+    import hashlib
+    import threading
+    VOICE_DIR.mkdir(parents=True, exist_ok=True)
+    urls = []
+    for n, part in enumerate(ai.speech_parts(text)):
+        name = hashlib.sha1(f"te|{part}".encode()).hexdigest()[:20] + ".wav"
+        urls.append(f"app/static/voice/{name}")
+        if not (VOICE_DIR / name).exists():
+            threading.Thread(target=save_voice, args=(part, VOICE_DIR / name, n == 0), daemon=True).start()
+    return urls
+
+
+def save_voice(part, path, first=False):
+    audio = ai.speak(part, "te", first)
+    tmp = path.with_name(path.name + ".tmp")
+    tmp.write_bytes(audio or b"")  # an empty file = this piece could not be voiced: the page skips it
+    tmp.replace(path)
+    cutoff = time.time() - 2 * 86400  # tidy up: voice files older than two days
+    for old in VOICE_DIR.glob("*.wav"):
+        if old.stat().st_mtime < cutoff:
+            old.unlink(missing_ok=True)
 
 
 def voice_icons(where):
@@ -1485,8 +1530,8 @@ window.rmPaused = (on) => {
 };
 window.rmPauseOrGo = () => {
   const a = window.rmAudio, s = window.speechSynthesis;
-  if (window.rmIsPaused) { a ? a.play().catch(() => {}) : s && s.resume(); rmPaused(false); }
-  else if (a || (s && s.speaking)) { a ? a.pause() : s.pause(); rmPaused(true); }
+  if (window.rmIsPaused) { rmPaused(false); a ? a.play().catch(() => {}) : s && s.resume(); }
+  else if (a || (s && s.speaking) || document.documentElement.dataset.rmVoice === 'on') { a ? a.pause() : s && s.pause(); rmPaused(true); }
 };
 // The icons work in the page only: catch the click before Streamlit sees it, so the pop-up does not reload
 if (!window.rmVoiceKeys) {
@@ -1498,19 +1543,39 @@ if (!window.rmVoiceKeys) {
     pause ? rmPauseOrGo() : rmQuiet();
   }, true);
 }
-// urls: the Gemini voice, one recording or a list of pieces played one after another
+// urls: the Gemini voice, one recording or a list of pieces played one after another. A piece
+// that is a file still being made (app/static/voice/...) is waited for: the reading starts as soon
+// as the first piece is ready. While waiting, html[data-rm-voice="wait"] shows "preparing" and ⏹.
 window.rmSay = (text, lang, urls, onEnd) => {
   rmQuiet();
   const mine = window.rmTurn;
   const done = () => { if (mine !== window.rmTurn) return; delete document.documentElement.dataset.rmVoice; window.rmAudio = null; onEnd && onEnd(); };
   const list = (Array.isArray(urls) ? urls : [urls]).filter(Boolean);
   if (list.length) {
-    document.documentElement.dataset.rmVoice = 'on';
-    const play = (i) => {
+    const ready = async (url) => {  // true when the piece can be played, false if it could not be made
+      if (url.startsWith('data:')) return true;
+      for (let n = 0; n < 240 && mine === window.rmTurn; n++) {
+        try {
+          const r = await fetch(url, { method: 'HEAD', cache: 'no-store' });
+          if (r.ok) return Number(r.headers.get('content-length') || 1) > 0;
+        } catch (e) {}
+        await new Promise((ok) => setTimeout(ok, 400));
+      }
+      return false;
+    };
+    const waits = list.map(ready);  // check them all at once; play in order
+    document.documentElement.dataset.rmVoice = 'wait';
+    const play = async (i) => {
       if (mine !== window.rmTurn) return;
       if (i >= list.length) return done();
+      window.rmAudio = null;  // between pieces: nothing to pause or replay until the next one starts
+      if (!(await waits[i])) return play(i + 1);
+      if (mine !== window.rmTurn) return;
       const a = new Audio(list[i]); window.rmAudio = a;
-      a.onended = a.onerror = () => play(i + 1); a.play().catch(() => play(i + 1));
+      if (document.documentElement.dataset.rmVoice === 'wait') document.documentElement.dataset.rmVoice = 'on';
+      a.onended = a.onerror = () => play(i + 1);
+      if (window.rmIsPaused) return;  // paused between two pieces: ▶ starts this one
+      a.play().catch(() => play(i + 1));
     };
     return play(0);
   }
@@ -1691,6 +1756,14 @@ def add_doc_files(new):
         st.rerun()
 
 
+DOC_POOL = ThreadPoolExecutor(max_workers=4)  # Crop Doctor checks run here, so ⏹ can stop the wait
+
+
+def stop_doc_check():
+    """⏹ beside Analyse: stop waiting for the check (its answer, when it comes, is not used)."""
+    ss.doc_job = None
+
+
 def remove_doc_file(fid):
     ss.doc_files = [f for f in ss.doc_files if f.id != fid]
 
@@ -1735,13 +1808,28 @@ def page_doctor(user):
                     add_doc_files(upload_box())
             label = T(f"🔍 Analyse {len(ups)} photo{'s' if len(ups) != 1 else ''} / video{'s' if len(ups) != 1 else ''}",
                       f"🔍 {len(ups)} ఫోటోలు / వీడియోలు పరిశీలించండి")
-            if st.button(label, type="primary", width="stretch"):
-                with st.spinner(T("Looking at the leaves...", "ఆకులను పరిశీలిస్తున్నాం...")):
-                    try:
-                        res, pics = check_media(ups, provider, lang, crop or None)
-                    except media.MediaError as e:
-                        st.error(err(e))
-                        res = None
+            # The check runs in the background, with ⏹ beside the button: stop it, add another photo, check again
+            busy = ss.get("doc_job")
+            with st.container(horizontal=True, gap="small", key="doc_go_row"):
+                go = st.button("⏳ " + T("Looking at the leaves...", "ఆకులను పరిశీలిస్తున్నాం...") if busy else label,
+                               type="primary", width="stretch", disabled=bool(busy), key="doc_go")
+                if busy:
+                    st.button("⏹", key="doc_stop", on_click=stop_doc_check, help=T("Stop", "ఆపండి"))
+            if ss.get("doc_error"):
+                st.error(ss.pop("doc_error"))
+            if go:
+                ss.doc_job = DOC_POOL.submit(check_media, list(ups), provider, lang, crop or None)
+                st.rerun()
+            if busy:
+                tick = st.empty()
+                while not busy.done():
+                    time.sleep(0.3)
+                    tick.empty()  # every page update is a point where ⏹ (or a new photo) can cut in
+                ss.doc_job = None
+                try:
+                    res, pics = busy.result()
+                except media.MediaError as e:
+                    ss.doc_error, res = err(e), None
                 if res:
                     log_query("pest_diagnosis", lang, provider)
                     ss.diagnosis = res
@@ -1749,6 +1837,7 @@ def page_doctor(user):
                     d = res["diagnosis"]
                     ss.diag_saved = bool(user["role"] == "farmer" and d["status"] == "detected" and history.add(
                         user["farmer_id"], d["disease_id"], d["confidence"], acres, "Crop Doctor", photo=pics[0][0]))
+                st.rerun()
 
     res = ss.get("diagnosis")
     if res:

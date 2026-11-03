@@ -373,7 +373,7 @@ def speak_parts(body: SpeakIn):
     """The text in short pieces to voice one by one (the first is ready in a few seconds), and the
     voice for all of them is started now. The page then asks /api/speak for each piece in order."""
     ai.speak_later(body.text, body.lang)
-    return {"parts": ai.speech_parts(body.text)}
+    return {"parts": ai.speech_parts(body.text, lang=body.lang)}
 
 
 @app.post("/api/speak")

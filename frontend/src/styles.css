@@ -627,3 +627,8 @@ label.check input { width: auto; }
 .media-count { display: block; margin-top: 6px; text-align: center; }
 .msg-media { display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 6px; margin-bottom: 6px; max-width: 320px; }
 .msg-media img, .msg-media video { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 8px; background: #000; }
+
+/* Crop Doctor: ⏹ beside "Checking..." */
+.detect-row { display: flex; gap: 8px; align-items: stretch; }
+.detect-row .primary { flex: 1; }
+.detect-stop { flex: 0 0 52px; padding: 0; font-size: 18px; }

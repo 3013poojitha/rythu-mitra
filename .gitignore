@@ -19,3 +19,4 @@ backend/consent.json
 backend/new_farmers.json
 
 telugu_read_aloud_sample.wav
+static/voice/

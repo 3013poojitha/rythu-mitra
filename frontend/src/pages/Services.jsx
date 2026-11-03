@@ -122,6 +122,7 @@ export default function Services({ user, refreshUser, waOpen }) {
               {Object.entries(farmer.advisories).map(([crop, a]) => (
                 <div key={crop}><b>{tc(crop)}</b><ul>{(te && a.te ? a.te : a.en).slice(0, 3).map((l) => <li key={l}>{l}</li>)}</ul></div>
               ))}
+              {farmer.next_crops?.length > 0 && <NextCrops plans={farmer.next_crops} />}
             </Section>
           </aside>
         </div>
@@ -144,6 +145,36 @@ function Section({ id, openId, setOpenId, icon, title, hint, children }) {
       </button>
       {open && <div className="side-body" data-read><ReadAloud />{children}</div>}
     </div>
+  );
+}
+
+// Advisory: what each plot could grow next - the best crop in full (why, when to sow, seed,
+// fertilizer, harvest, money), then the other choices in one line (backend/app/next_crop.py)
+function NextCrops({ plans }) {
+  const { lang, t } = useLang();
+  return (
+    <>
+      <div className="nc-title">🔄 {t("What to grow next", "తర్వాత ఏ పంట వేయవచ్చు")}</div>
+      {plans.map((pl) => {
+        const best = pl.picks[0];
+        const w = best[lang];
+        return (
+          <div key={pl.survey_no} className="nc-card">
+            <div className="nc-plot">{pl[lang].head}</div>
+            <div className="nc-best">{best.icon} <b>{w.name}</b><span className="pill soft">{w.season}</span>
+              <span className="nc-tag">{t("Best choice", "మంచి ఎంపిక")}</span></div>
+            <ul className="nc-why">{w.why.map((x) => <li key={x}>{x}</li>)}</ul>
+            <div className="nc-grid">
+              <div>📅 {w.sow}</div><div>🌱 {w.seed}</div><div>🧪 {w.fert}</div><div>⏳ {w.harvest}</div><div>🧺 {w.yield}</div>
+            </div>
+            <div className="nc-money">💰 {w.money}</div>
+            {pl.picks.length > 1 && <div className="nc-others"><b>{t("Other choices", "ఇతర ఎంపికలు")}:</b> {pl.picks.slice(1).map((x) => x[lang].short).join(", ")}</div>}
+          </div>
+        );
+      })}
+      <p className="muted small">{t("Demo estimates from soil, water, season, crop rotation and market price. Check with your AEO and a soil test before sowing.",
+        "నేల, నీరు, కాలం, పంట మార్పిడి, మార్కెట్ ధర ఆధారంగా డెమో అంచనాలు. విత్తే ముందు మీ AEO ని అడగండి, నేల పరీక్ష చేయించండి.")}</p>
+    </>
   );
 }
 

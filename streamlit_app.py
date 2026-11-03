@@ -55,7 +55,7 @@ _code_stamp = max(p.stat().st_mtime for p in (ROOT / "backend" / "app").glob("*.
 if "app" in sys.modules and getattr(sys.modules["app"], "_code_stamp", None) != _code_stamp:
     for _name in [m for m in sys.modules if m == "app" or m.startswith("app.")]:
         del sys.modules[_name]
-from app import ai, applications, assistant, auth, consent, data, diseases, history, media, pipeline, profiles, reminders, seasons, terms, today  # noqa: E402
+from app import ai, applications, assistant, auth, consent, data, diseases, history, media, next_crop, pipeline, profiles, reminders, seasons, terms, today  # noqa: E402
 from app import report as farm_report  # noqa: E402  (this file has its own report() for Crop Doctor)
 sys.modules["app"]._code_stamp = _code_stamp
 
@@ -331,6 +331,17 @@ button[data-variant="segmented_control"][aria-checked="true"] p, button[data-var
 .msg-media img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 8px; display: block; }
 .msg-media .mm span { position: absolute; left: 4px; bottom: 4px; background: rgba(0,0,0,.55); border-radius: 6px; padding: 0 4px; font-size: 13px; }
 .st-key-doc_thumbs { flex-wrap: wrap; }
+/* 🔄 Advisory: what to grow next */
+.nc-title { font-weight: 700; margin: 10px 0 6px; color: #1b5e20; }
+.nc-card { border: 1px solid #e1e8df; border-radius: 12px; padding: 10px 12px; margin-bottom: 10px; background: #fbfdfb; font-size: 14px; }
+.nc-plot { color: #66756a; font-size: 12.5px; margin-bottom: 6px; }
+.nc-best { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 16px; }
+.nc-tag { margin-left: auto; font-size: 11.5px; font-weight: 700; color: #1b5e20; background: #e8f3ea; border-radius: 10px; padding: 1px 8px; }
+.nc-why { margin: 6px 0; padding-left: 18px; color: #3d4c40; }
+.nc-why li { margin: 1px 0; }
+.nc-grid { display: grid; gap: 3px; }
+.nc-money { margin-top: 6px; background: #fff7e0; border-radius: 8px; padding: 5px 8px; font-weight: 600; }
+.nc-others { margin-top: 6px; color: #4b5b4e; font-size: 13px; }
 /* ⏰ Spray reminders in the 🔔 bell */
 .rem-card { display: flex; flex-direction: column; gap: 3px; font-size: 14px; border-left: 4px solid #cfe3d3; padding-left: 10px; }
 .rem-card.soon { border-left-color: #e3b341; }
@@ -2428,13 +2439,39 @@ def side_sections(f, fid):
         H(f'<div class="weather">{"".join(days)}</div>')
 
     crops = [c for c in f["crops"] if c in data.ADVISORIES]
+    plans = next_crop.for_farmer(fid)
     with side_section("advice", f"🌱 {T('Advisory', 'సలహాలు')}  ·  {', '.join(crop_name(c) for c in crops)}"):
         read_btn(T("Advisory. ", "సలహాలు. ") + ". ".join(
-            f"{crop_name(c)}: " + ". ".join(data.ADVISORIES[c][ss.ui_lang][:3]) for c in crops), "advice")
+            f"{crop_name(c)}: " + ". ".join(data.ADVISORIES[c][ss.ui_lang][:3]) for c in crops)
+            + ". " + next_crop.speech(plans, ss.ui_lang), "advice")
         for c in crops:
             st.markdown(f"**{crop_name(c)}**")
             for tip in data.ADVISORIES[c][ss.ui_lang][:3]:
                 st.markdown(f"- {tip}")
+        if plans:
+            next_crops(plans)
+
+
+def next_crops(plans):
+    """Advisory: what each plot could grow next - the best crop in full (why, when to sow, seed,
+    fertilizer, harvest, money), then the other choices in one line (backend/app/next_crop.py)."""
+    e = html.escape
+    lang = ss.ui_lang
+    H('<div class="nc-title">🔄 ' + T("What to grow next", "తర్వాత ఏ పంట వేయవచ్చు") + "</div>")
+    for pl in plans:
+        best, w = pl["picks"][0], pl["picks"][0][lang]
+        others = ", ".join(e(p[lang]["short"]) for p in pl["picks"][1:])
+        why = "".join(f"<li>{e(x)}</li>" for x in w["why"])
+        H(f'<div class="nc-card"><div class="nc-plot">{e(pl[lang]["head"])}</div>'
+          f'<div class="nc-best">{best["icon"]} <b>{e(w["name"])}</b><span class="pill soft">{e(w["season"])}</span>'
+          f'<span class="nc-tag">{T("Best choice", "మంచి ఎంపిక")}</span></div><ul class="nc-why">{why}</ul>'
+          f'<div class="nc-grid"><div>📅 {e(w["sow"])}</div><div>🌱 {e(w["seed"])}</div><div>🧪 {e(w["fert"])}</div>'
+          f'<div>⏳ {e(w["harvest"])}</div><div>🧺 {e(w["yield"])}</div></div>'
+          f'<div class="nc-money">💰 {e(w["money"])}</div>'
+          + (f'<div class="nc-others"><b>{T("Other choices", "ఇతర ఎంపికలు")}:</b> {others}</div>' if others else "")
+          + "</div>")
+    st.caption(T("Demo estimates from soil, water, season, crop rotation and market price. Check with your AEO and a soil test before sowing.",
+                 "నేల, నీరు, కాలం, పంట మార్పిడి, మార్కెట్ ధర ఆధారంగా డెమో అంచనాలు. విత్తే ముందు మీ AEO ని అడగండి, నేల పరీక్ష చేయించండి."))
 
 
 def page_my_details(user):

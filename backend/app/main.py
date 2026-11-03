@@ -16,7 +16,7 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse  # noqa: 
 from fastapi.staticfiles import StaticFiles  # noqa: E402
 from pydantic import BaseModel  # noqa: E402
 
-from . import ai, applications, assistant, auth, consent, data, diseases, history, media, pipeline, profiles, reminders, report, seasons, terms, today  # noqa: E402
+from . import ai, applications, assistant, auth, consent, data, diseases, history, media, next_crop, pipeline, profiles, reminders, report, seasons, terms, today  # noqa: E402
 
 app = FastAPI(title="Telangana Bharat Vistaar - Rythu Mitra API")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
@@ -348,7 +348,8 @@ def farmer(farmer_id: str, request: Request):
     griev = [g for g in data.GRIEVANCES if g["farmer_id"] == f["farmer_id"]]
     return {**f, "applications": apps, "grievances": griev, "weather": data.WEATHER[f["district"]],
             "schemes_open": applications.open_schemes(f["farmer_id"]),  # schemes they can apply for now
-            "advisories": {c: data.ADVISORIES[c] for c in f["crops"] if c in data.ADVISORIES}}
+            "advisories": {c: data.ADVISORIES[c] for c in f["crops"] if c in data.ADVISORIES},
+            "next_crops": next_crop.for_farmer(f["farmer_id"])}  # what each plot could grow next
 
 
 @app.get("/api/profile-options")

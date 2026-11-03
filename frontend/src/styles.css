@@ -296,6 +296,8 @@ button.full { width: 100%; padding: 10px; margin-top: 14px; }
 .consent-actions { display: flex; gap: 10px; margin-top: 8px; flex-wrap: wrap; }
 .consent-actions button { flex: 1; padding: 12px; font-size: 16px; min-width: 140px; }
 .consent-actions .primary { flex: 2; }
+.consent-actions button { white-space: nowrap; } /* move to the next line rather than squeeze the words */
+.consent-voice { display: flex; gap: 8px; flex: 1 1 auto; }
 
 /* ➕ Apply for a scheme (Home, inside Scheme applications) */
 .apply-box { border-top: 1px dashed var(--line); margin-top: 10px; padding-top: 10px; display: flex; flex-direction: column; gap: 8px; }
@@ -532,8 +534,9 @@ label.check input { width: auto; }
 .today-icon { font-size: 20px; line-height: 1.2; }
 .today-actions { display: flex; gap: 10px; margin-top: 14px; }
 .today-actions button { flex: 1; padding: 12px; font-size: 16px; }
-.today-actions button.voice-icon { flex: 0 0 48px; padding: 0; font-size: 18px; }
-.today-actions button.voice-icon:disabled { opacity: .4; cursor: default; }
+/* ⏸ / ⏹ beside Read aloud and in the chat's voice bar (shown only while reading) */
+.today-actions button.voice-icon, .consent-actions button.voice-icon { flex: 0 0 48px; min-width: 0; padding: 0; font-size: 18px; }
+.voice-bar .voice-icon { width: 36px; height: 32px; padding: 0; font-size: 15px; }
 
 /* ---- 🔔 Notification bell (remedy questions) ---- */
 .bell { position: relative; }

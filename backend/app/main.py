@@ -368,6 +368,14 @@ def update_farmer(farmer_id: str, body: ProfileIn, request: Request):
 
 # ---- Read aloud with a real Telugu voice ----
 
+@app.post("/api/speak/parts")
+def speak_parts(body: SpeakIn):
+    """The text in short pieces to voice one by one (the first is ready in a few seconds), and the
+    voice for all of them is started now. The page then asks /api/speak for each piece in order."""
+    ai.speak_later(body.text, body.lang)
+    return {"parts": ai.speech_parts(body.text)}
+
+
 @app.post("/api/speak")
 def speak(body: SpeakIn):
     """WAV audio of the text (Gemini voice). 204 = no voice here; the browser reads it instead."""

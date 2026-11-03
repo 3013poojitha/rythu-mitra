@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { api, renderText } from "../api.jsx";
 import { useLang } from "../i18n.jsx";
 import { speakText, stopSpeaking } from "../speech.js";
+import VoiceControls from "../VoiceControls.jsx";
 import { mediaForm, toItems } from "../MediaPicker.jsx";
 
 const QUICK = {
@@ -338,7 +339,8 @@ export default function Chat({ user, waOpen, embedded = false }) {
             <b>{voice === "greeting" ? t("Rythu Mitra is speaking…", "రైతు మిత్ర మాట్లాడుతోంది…")
               : voice === "listening" ? t("Listening… speak now", "వింటున్నాను… ఇప్పుడు మాట్లాడండి")
               : t("Reading the answer…", "జవాబు చదువుతున్నాను…")}</b>
-            <button onClick={stopVoice}>⏹ {t("Stop", "ఆపండి")}</button>
+            {voice === "listening" ? <button onClick={stopVoice}>⏹ {t("Stop", "ఆపండి")}</button>
+              : <VoiceControls onStop={stopVoice} />}
           </div>
         )}
         <div className="composer">

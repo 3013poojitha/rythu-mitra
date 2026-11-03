@@ -328,6 +328,15 @@ button[data-variant="segmented_control"][aria-checked="true"] p, button[data-var
 .msg-media img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 8px; display: block; }
 .msg-media .mm span { position: absolute; left: 4px; bottom: 4px; background: rgba(0,0,0,.55); border-radius: 6px; padding: 0 4px; font-size: 13px; }
 .st-key-doc_thumbs { flex-wrap: wrap; }
+/* ⏸ / ⏹ for reading aloud: only while something is being read (html[data-rm-voice], set by rmSay) */
+html:not([data-rm-voice]) [class*="st-key-voice_pause_"], html:not([data-rm-voice]) [class*="st-key-voice_stop_"],
+html:not([data-rm-voice]) .st-key-voice_bar_chat { display: none !important; }
+[class*="st-key-voice_row_"] { flex-wrap: nowrap; }
+[class*="st-key-voice_pause_"], [class*="st-key-voice_stop_"] { width: auto !important; flex: 0 0 auto !important; }
+[class*="st-key-voice_pause_"] button, [class*="st-key-voice_stop_"] button { min-width: 40px; padding: 0 8px; }
+.st-key-voice_bar_chat { background: #eef7f0; border-radius: 10px; padding: 4px 10px; }
+.st-key-voice_bar_chat [data-testid="stMarkdown"] { flex: 1 1 auto; width: auto !important; }
+.st-key-voice_bar_chat b { color: #1b5e20; font-size: 14px; }
 [class*="st-key-doc_pic_"] { position: relative; }
 [class*="st-key-doc_pic_"] img, [class*="st-key-doc_pic_"] video { border-radius: 10px; height: 110px; object-fit: cover; }
 [class*="st-key-doc_pic_"] [class*="st-key-doc_rm_"] { position: absolute; top: 4px; right: 4px; width: auto; z-index: 2; }
@@ -1114,15 +1123,15 @@ def today_update(user):
           + f'<div class="today-lines">{lines(u["crop_lines"])}</div>')
         st.caption(T("Crop reminders are demo timings. Check with your AEO before using fertilizer or medicine.",
                      "పంట గుర్తుచేతలు డెమో సమయాలు మాత్రమే. ఎరువు లేదా మందు వాడే ముందు మీ AEO ని అడగండి."))
-        c1, cp, cs, c2 = st.columns([3, 0.8, 0.8, 3.4], gap="small", vertical_alignment="center")
-        if c1.button("🔊 " + T("Read aloud", "చదివి వినిపించండి"), width="stretch", key="today_speak"):
-            speak_aloud(today.speech(u, lang), lang)
-        # Small pause / stop icons beside Read aloud; they work in the page itself (see rmPauseOrGo in SAY_JS)
-        cp.button("⏸", key="voice_pause_today", width="stretch", help=T("Pause / continue", "ఆపి ఉంచండి / కొనసాగించండి"))
-        cs.button("⏹", key="voice_stop_today", width="stretch", help=T("Stop", "ఆపండి"))
+        c1, c2 = st.columns(2, vertical_alignment="center")
+        with c1, st.container(horizontal=True, gap="small", key="voice_row_today"):
+            read = st.button("🔊 " + T("Read aloud", "చదివి వినిపించండి"), width="stretch", key="today_speak")
+            voice_icons("today")
         if c2.button("✅ " + T("Done", "సరే"), type="primary", width="stretch", key="today_done"):
             ss.stop_voice = True
             st.rerun()
+        if read:  # outside the button row: Streamlit hides the script frame inside a row, so it would not run
+            speak_aloud(today.speech(u, lang), lang)
 
     st.dialog("🌾 " + T("Today on your farm", "ఈరోజు మీ పొలంలో"), width="medium")(box)()
 
@@ -1291,6 +1300,9 @@ def chat_window(user, main, channel, lang, provider, farmer_id, clicked, quick=F
                             clicked = q
             for m in ss.chat:
                 show_message(m)
+        with st.container(horizontal=True, gap="small", vertical_alignment="center", key="voice_bar_chat"):
+            H('<b>🔊 ' + T("Reading aloud…", "చదివి వినిపిస్తోంది…") + '</b>')
+            voice_icons("chat")
         sent = st.chat_input("మీ ప్రశ్న టైప్ చేయండి లేదా మైక్ నొక్కండి... 📎 ఫోటో కూడా పంపవచ్చు" if lang == "te"
                              else "Type your question or tap the mic... 📎 or send a crop photo",
                              accept_file="multiple", file_type=MEDIA_TYPES, key="chat_box")
@@ -1369,7 +1381,7 @@ VOICE_AGAIN = {"en": "Please ask your question.", "te": "మీ ప్రశ్�
 def audio_url(text):
     """Telugu audio for a short fixed sentence, if Gemini has made it already (it is made in the
     background the first time, so the page never waits)."""
-    audio = ai.speak_later(text, "te")
+    audio = ai.speak_later(text, "te", whole=True)
     return "data:audio/wav;base64," + base64.b64encode(audio).decode() if audio else ""
 
 
@@ -1423,12 +1435,21 @@ def speak_aloud(text, lang):
     reads Telugu letters with an English voice, which sounds wrong - so Telugu is spoken by Gemini
     (when its key is set); otherwise the browser's own Telugu voice if it has one (Edge does)."""
     clean = re.sub(r"\*\*|[•💡➡️📄⚠️]", "", text)
-    audio = None
+    urls = []
     if lang == "te":
         with st.spinner("గొంతు సిద్ధమవుతోంది…"):
-            audio = ai.speak(clean, lang)
-    url = "data:audio/wav;base64," + base64.b64encode(audio).decode() if audio else ""
-    page_js(SAY_JS + f"rmSay({json.dumps(clean)}, '{lang}', '{url}');")
+            # made in short pieces, all at the same time (~7 s instead of ~14 s; often ready already,
+            # as the pop-ups start them when they open), then played one after another
+            urls = ["data:audio/wav;base64," + base64.b64encode(a).decode() for a in ai.speak_parts(clean, lang) if a]
+    ss.say_n = ss.get("say_n", 0) + 1  # a new script every time: Streamlit skips one it has just run
+    page_js(SAY_JS + f"rmSay({json.dumps(clean)}, '{lang}', {json.dumps(urls)}); // {ss.say_n}")
+
+
+def voice_icons(where):
+    """Small ⏸ / ⏹ icons for what is being read aloud. Hidden until the reading starts (CSS on
+    html[data-rm-voice]); they work in the page itself (rmPauseOrGo / rmQuiet in SAY_JS)."""
+    st.button("⏸", key=f"voice_pause_{where}", help=T("Pause / continue", "ఆపి ఉంచండి / కొనసాగించండి"))
+    st.button("⏹", key=f"voice_stop_{where}", help=T("Stop", "ఆపండి"))
 
 
 # rmSay(text, lang, audioUrl, onEnd) / rmQuiet(): read aloud in the app page (see speak_aloud)
@@ -1445,11 +1466,14 @@ window.rmVoice = (lang) => {
 window.rmQuiet = () => {
   if (window.speechSynthesis) { speechSynthesis.resume(); speechSynthesis.cancel(); }  // Chrome keeps a paused voice paused after cancel()
   if (window.rmAudio) { window.rmAudio.onended = null; window.rmAudio.pause(); window.rmAudio = null; }
+  window.rmTurn = (window.rmTurn || 0) + 1;
   rmPaused(false);
+  delete document.documentElement.dataset.rmVoice;
 };
 // ⏸ / ▶ beside Read aloud: pause and carry on (the Gemini audio or the browser voice)
 window.rmPaused = (on) => {
   window.rmIsPaused = on;
+  if (document.documentElement.dataset.rmVoice) document.documentElement.dataset.rmVoice = on ? 'paused' : 'on';
   document.querySelectorAll('[class*="st-key-voice_pause"] button p').forEach((p) => { p.textContent = on ? '▶' : '⏸'; });
 };
 window.rmPauseOrGo = () => {
@@ -1467,12 +1491,25 @@ if (!window.rmVoiceKeys) {
     pause ? rmPauseOrGo() : rmQuiet();
   }, true);
 }
-window.rmSay = (text, lang, url, onEnd) => {
+// urls: the Gemini voice, one recording or a list of pieces played one after another
+window.rmSay = (text, lang, urls, onEnd) => {
   rmQuiet();
-  const done = () => onEnd && onEnd();
-  if (url) { const a = new Audio(url); window.rmAudio = a; a.onended = a.onerror = done; a.play().catch(done); return; }
+  const mine = window.rmTurn;
+  const done = () => { if (mine !== window.rmTurn) return; delete document.documentElement.dataset.rmVoice; window.rmAudio = null; onEnd && onEnd(); };
+  const list = (Array.isArray(urls) ? urls : [urls]).filter(Boolean);
+  if (list.length) {
+    document.documentElement.dataset.rmVoice = 'on';
+    const play = (i) => {
+      if (mine !== window.rmTurn) return;
+      if (i >= list.length) return done();
+      const a = new Audio(list[i]); window.rmAudio = a;
+      a.onended = a.onerror = () => play(i + 1); a.play().catch(() => play(i + 1));
+    };
+    return play(0);
+  }
   const own = rmVoice(lang);
   if (!window.speechSynthesis || (lang === 'te' && !own)) return done();  // no Telugu voice: say nothing rather than garble it
+  document.documentElement.dataset.rmVoice = 'on';
   const u = new SpeechSynthesisUtterance(text); u.lang = lang === 'te' ? 'te-IN' : 'en-IN'; if (own) u.voice = own;
   u.rate = 0.95;  // a little calmer than the default
   u.onend = u.onerror = done; window.rmUtterance = u; speechSynthesis.speak(u);
@@ -2185,8 +2222,11 @@ else {{
         H(f'<div class="consent"><div class="consent-icon">🔒</div><h2>{t["title"]}</h2><p>{t["intro"]}</p>'
           f'<div class="consent-keeps">{keeps}</div><h3>{t["use_title"]}</h3><ul>{uses}</ul>'
           f'<ul class="consent-promise">{promise}</ul></div>')
-        c1, c2, c3 = st.columns([1, 1, 2])
-        if c1.button("🔊 " + T("Read aloud", "చదివి వినిపించండి"), width="stretch", key="consent_speak"):
+        c1, c2, c3 = st.columns([2.4, 1, 1.8])  # room for Read aloud and its ⏸ ⏹
+        with c1, st.container(horizontal=True, gap="small", key="voice_row_consent"):
+            read = st.button("🔊 " + T("Read aloud", "చదివి వినిపించండి"), width="stretch", key="consent_speak")
+            voice_icons("consent")
+        if read:  # outside the button row (see today_update)
             speak_aloud(consent.speech(lang), lang)
         if c2.button("✖ " + t["decline"], width="stretch", key="consent_no"):
             consent.record(user["farmer_id"], False, lang)

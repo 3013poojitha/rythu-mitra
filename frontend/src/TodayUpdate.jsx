@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { api } from "./api.jsx";
 import { useLang } from "./i18n.jsx";
-import { pauseSpeaking, resumeSpeaking, speakText, stopSpeaking } from "./speech.js";
+import { speakText, stopSpeaking, useVoice } from "./speech.js";
+import VoiceControls from "./VoiceControls.jsx";
 
 // 📅 Today's update (farmers): weather, watering, spraying and crop work due today.
 // Opens by itself after the first login of the day; the button beside the 🔔 bell opens it again.
@@ -10,8 +11,8 @@ export default function TodayUpdate() {
   const { te, lang, t, date } = useLang();
   const [update, setUpdate] = useState(null);
   const [open, setOpen] = useState(false);
-  const [voice, setVoice] = useState(null); // "preparing" | "speaking" | "paused" | null
-  useEffect(() => { stopSpeaking(); setVoice(null); }, [lang]); // language switched: stop reading
+  const voice = useVoice(); // "preparing" | "speaking" | "paused" | null
+  useEffect(() => { stopSpeaking(); }, [lang]); // language switched: stop reading
 
   useEffect(() => {
     api.today().then((u) => {
@@ -30,24 +31,12 @@ export default function TodayUpdate() {
 
   function close() {
     stopSpeaking();
-    setVoice(null);
     setOpen(false);
   }
 
   function readAloud() {
     if (!update) return;
-    setVoice("preparing");
-    speakText(update.speech[lang], lang, { onReady: () => setVoice("speaking"), onEnd: () => setVoice(null) });
-  }
-
-  function pauseOrGo() {
-    if (voice === "paused") { resumeSpeaking(); setVoice("speaking"); }
-    else { pauseSpeaking(); setVoice("paused"); }
-  }
-
-  function stop() {
-    stopSpeaking();
-    setVoice(null);
+    speakText(update.speech[lang], lang);
   }
 
   const w = update?.weather;
@@ -88,11 +77,7 @@ export default function TodayUpdate() {
             <div className="today-actions">
               <button onClick={readAloud}>{voice === "preparing" ? `⏳ ${t("Preparing voice…", "గొంతు సిద్ధమవుతోంది…")}`
                 : `🔊 ${t("Read aloud", "చదివి వినిపించండి")}`}</button>
-              {/* Small pause / stop icons beside Read aloud, usable while it reads */}
-              <button className="voice-icon" disabled={voice !== "speaking" && voice !== "paused"} onClick={pauseOrGo}
-                      title={voice === "paused" ? t("Continue", "కొనసాగించండి") : t("Pause", "ఆపి ఉంచండి")}>
-                {voice === "paused" ? "▶" : "⏸"}</button>
-              <button className="voice-icon" disabled={!voice} onClick={stop} title={t("Stop", "ఆపండి")}>⏹</button>
+              <VoiceControls />
               <button className="primary" onClick={close} autoFocus>✅ {t("Done", "సరే")}</button>
             </div>
           </div>

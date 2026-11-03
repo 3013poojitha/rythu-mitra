@@ -193,15 +193,44 @@ def _make_speech(key, text, lang):
     return _speech_cache[key]
 
 
-def speak_later(text, lang="te"):
-    """The spoken audio if it is ready; otherwise start making it in the background and return None
-    (used for the short mic welcome, so the page never waits for it)."""
-    key = (lang, " ".join(str(text or "").split())[:3000])
-    if key in _speech_cache or key in _speech_busy or not is_live("gemini"):
-        return _speech_cache.get(key)
+def speech_parts(text, size=140):
+    """Text cut into short pieces to voice one by one: the first sentence alone (its voice is ready
+    in about 4 seconds, so reading starts quickly), then sentences grouped up to about `size` letters.
+    Gemini takes ~14 s to voice 260 Telugu letters in one go, but makes all the pieces at the same
+    time in ~7 s, and the later pieces are ready before the earlier ones finish playing."""
+    import re
+    sentences = [s for s in re.split(r"(?<=[.!?।])\s+", " ".join(str(text or "").split())) if s]
+    parts, cur = sentences[:1], ""
+    for s in sentences[1:]:
+        if cur and len(cur) + len(s) > size:
+            parts.append(cur)
+            cur = s
+        else:
+            cur = f"{cur} {s}".strip()
+    return parts + [cur] if cur else parts
+
+
+def speak_parts(text, lang="te"):
+    """Voice for every piece of the text (see speech_parts), all made at the same time.
+    A list of WAV bytes (None for a piece that failed)."""
+    from concurrent.futures import ThreadPoolExecutor
+    parts = speech_parts(text)
+    with ThreadPoolExecutor(max(1, min(len(parts), 8))) as pool:
+        return list(pool.map(lambda p: speak(p, lang), parts))
+
+
+def speak_later(text, lang="te", whole=False):
+    """The spoken audio if it is ready; otherwise start making it in the background and return None,
+    so the page never waits. Long texts are made piece by piece (speech_parts), as Read aloud plays
+    them; whole=True makes one recording (the short mic welcome)."""
+    if not is_live("gemini"):
+        return None
     import threading
-    threading.Thread(target=speak, args=(text, lang), daemon=True).start()
-    return None
+    for piece in [text] if whole else speech_parts(text):
+        key = (lang, " ".join(str(piece or "").split())[:3000])
+        if key not in _speech_cache and key not in _speech_busy:
+            threading.Thread(target=speak, args=(piece, lang), daemon=True).start()
+    return _speech_cache.get((lang, " ".join(str(text or "").split())[:3000])) if whole else None
 
 
 def diagnose(provider, image_bytes, media_type, lang="en", crop_hint=None):

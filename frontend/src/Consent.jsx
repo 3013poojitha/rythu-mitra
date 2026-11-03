@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { api } from "./api.jsx";
 import { LangSwitch, useLang } from "./i18n.jsx";
-import { speakText, stopSpeaking } from "./speech.js";
+import { speakText, stopSpeaking, useVoice } from "./speech.js";
+import VoiceControls from "./VoiceControls.jsx";
 
 // 🔒 Consent: shown once to every farmer before the app. Says what the app keeps and why;
 // "I agree" opens the app, "No" logs out with a short message.
@@ -14,8 +15,8 @@ export default function Consent({ farmerId, done, onDecline }) {
   const { te, lang } = useLang();
   const [info, setInfo] = useState(null);
   const [busy, setBusy] = useState(false);
-  const [voice, setVoice] = useState(null); // "preparing" | "speaking" | null
-  useEffect(() => { stopSpeaking(); setVoice(null); }, [lang]); // language switched: stop reading
+  const voice = useVoice(); // "preparing" | "speaking" | "paused" | null
+  useEffect(() => { stopSpeaking(); }, [lang]); // language switched: stop reading
 
   useEffect(() => {
     if (agreedHere(farmerId)) {  // agreed before on this device: record it again quietly and go on
@@ -42,9 +43,7 @@ export default function Consent({ farmerId, done, onDecline }) {
   }
 
   function readAloud() {
-    if (voice) { stopSpeaking(); setVoice(null); return; } // tap again to stop
-    setVoice("preparing");
-    speakText(info.speech[lang], lang, { onReady: () => setVoice("speaking"), onEnd: () => setVoice(null) });
+    speakText(info.speech[lang], lang);
   }
 
   const t = info?.text[lang];
@@ -72,8 +71,11 @@ export default function Consent({ farmerId, done, onDecline }) {
             <ul>{t.uses.map((u) => <li key={u}>{u}</li>)}</ul>
             <ul className="consent-promise">{t.promise.map((p) => <li key={p}>✔️ {p}</li>)}</ul>
             <div className="consent-actions">
-              <button onClick={readAloud}>{voice === "preparing" ? (te ? "⏳ గొంతు సిద్ధమవుతోంది…" : "⏳ Preparing voice…")
-                : voice === "speaking" ? (te ? "⏹ ఆపండి" : "⏹ Stop") : (te ? "🔊 చదివి వినిపించండి" : "🔊 Read aloud")}</button>
+              <div className="consent-voice">
+                <button onClick={readAloud}>{voice === "preparing" ? (te ? "⏳ గొంతు సిద్ధమవుతోంది…" : "⏳ Preparing voice…")
+                  : (te ? "🔊 చదివి వినిపించండి" : "🔊 Read aloud")}</button>
+                <VoiceControls />
+              </div>
               <button onClick={() => answer(false)} disabled={busy}>✖ {t.decline}</button>
               <button className="primary" onClick={() => answer(true)} disabled={busy}>✅ {t.agree}</button>
             </div>

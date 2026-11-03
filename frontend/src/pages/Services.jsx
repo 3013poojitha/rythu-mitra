@@ -68,7 +68,7 @@ export default function Services({ user, refreshUser, waOpen }) {
 
           {/* Right side: tap a row to open what it contains */}
           <aside className="svc-side">
-            <Section id="advice" openId={openSec} setOpenId={setOpenSec} icon="🌱" title={t("Advisory", "సలహాలు")} hint={Object.keys(farmer.advisories).map(tc).join(", ")}>
+            <Section id="advice" openId={openSec} setOpenId={setOpenSec} icon="🌱" title={t("Advisory", "సలహాలు")}>
               {Object.entries(farmer.advisories).map(([crop, a]) => (
                 <div key={crop}><b>{tc(crop)}</b><ul>{(te && a.te ? a.te : a.en).slice(0, 3).map((l) => <li key={l}>{l}</li>)}</ul></div>
               ))}

@@ -2388,7 +2388,7 @@ def side_sections(f, fid):
     # Advisory first: what to do on the farm now and what to grow next
     crops = [c for c in f["crops"] if c in data.ADVISORIES]
     plans = next_crop.for_farmer(fid)
-    with side_section("advice", f"🌱 {T('Advisory', 'సలహాలు')}  ·  {', '.join(crop_name(c) for c in crops)}"):
+    with side_section("advice", f"🌱 {T('Advisory', 'సలహాలు')}"):
         read_btn(T("Advisory. ", "సలహాలు. ") + ". ".join(
             f"{crop_name(c)}: " + ". ".join(data.ADVISORIES[c][ss.ui_lang][:3]) for c in crops)
             + ". " + next_crop.speech(plans, ss.ui_lang), "advice")

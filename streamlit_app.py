@@ -31,7 +31,8 @@ sys.path.insert(0, str(ROOT / "backend"))
 from dotenv import load_dotenv  # noqa: E402
 
 load_dotenv(ROOT / "backend" / ".env")
-SECRET_NAMES = ("AI_MODE", "ANTHROPIC_API_KEY", "OPENAI_API_KEY", "GEMINI_API_KEY", "CLAUDE_MODEL", "OPENAI_MODEL", "GEMINI_MODEL")
+SECRET_NAMES = ("AI_MODE", "ANTHROPIC_API_KEY", "OPENAI_API_KEY", "GEMINI_API_KEY", "CLAUDE_MODEL", "OPENAI_MODEL", "GEMINI_MODEL",
+                "WHATSAPP_NUMBER")
 SECRETS_NOTE = "no secrets"  # shown on the login page with ?debug=1 (never the key itself)
 try:
     found = {k: st.secrets[k] for k in SECRET_NAMES if k in st.secrets}
@@ -887,20 +888,11 @@ d.head.appendChild(s); s.remove();
 </script>""", height=0)
 
 
-def open_whatsapp():
-    """Floating WhatsApp button: open the chat in WhatsApp style (farmers: on My Details)."""
-    ss.pop("view", None)
-    farmer = (current_user() or {}).get("role") == "farmer"
-    ss.page = "Farmer Services" if farmer else "Farmer Chat"
-    ss.wa_mode = True
-    ss.wa_scroll = farmer
-
-
 def whatsapp_button():
     """A green WhatsApp button that floats over every page. Drag it anywhere (the spot is
-    remembered); tap it to open the chat in WhatsApp style. It clicks a hidden Streamlit button."""
+    remembered); tap it to open WhatsApp in a new tab (data.whatsapp_link: our number once
+    WHATSAPP_NUMBER is set). The chat on the page stays as it is."""
     page_js(SAY_JS)  # rmSay / rmQuiet for reading aloud (the mic welcome uses them)
-    st.button("WhatsApp", key="wa_open", on_click=open_whatsapp)
     label = T("Chat on WhatsApp", "వాట్సాప్‌లో మాట్లాడండి")
     page_js(f"""
 (() => {{
@@ -919,11 +911,12 @@ def whatsapp_button():
     b.addEventListener('pointerup', () => {{
       if (!d) return; const moved = d.moved; d = null;
       if (moved) {{ const r = b.getBoundingClientRect(); try {{ localStorage.setItem(KEY, JSON.stringify({{ x: r.left, y: r.top }})); }} catch (e) {{}} return; }}
-      document.querySelector('.st-key-wa_open button')?.click();
+      window.open(b.dataset.link, '_blank', 'noopener');
     }});
     addEventListener('resize', () => {{ const r = b.getBoundingClientRect(); if (b.style.left) place({{ x: r.left, y: r.top }}); }});
   }}
   b.title = b.ariaLabel = {json.dumps(label)};
+  b.dataset.link = {json.dumps(data.whatsapp_link(ss.ui_lang))};
 }})();
 """)
 

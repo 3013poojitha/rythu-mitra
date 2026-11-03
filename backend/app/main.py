@@ -208,7 +208,8 @@ def telugu_terms():
 
 @app.get("/api/status")
 def status():
-    return {"providers": ai.status(), "ai_mode_setting": ai.AI_MODE}
+    return {"providers": ai.status(), "ai_mode_setting": ai.AI_MODE,
+            "whatsapp": {"te": data.whatsapp_link("te"), "en": data.whatsapp_link("en")}}  # floating button
 
 
 # ---- Login & accounts ----

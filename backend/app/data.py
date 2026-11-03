@@ -477,3 +477,17 @@ def read_json(path, default):
 
 # Apply farmers' saved edits on top of the demo data whenever this module is used
 from . import profiles  # noqa: E402,F401
+
+
+# ---- Floating WhatsApp button ----
+WHATSAPP_TEXT = {"te": "నమస్కారం రైతు మిత్ర, నాకు సహాయం కావాలి.", "en": "Namaskaram Rythu Mitra, I need help."}
+
+
+def whatsapp_link(lang="te"):
+    """Where the floating WhatsApp button goes. Set WHATSAPP_NUMBER (backend/.env, Streamlit Secrets or
+    the Render environment; country code first, digits only, e.g. 919876543210) and it opens that
+    chat. Until a number is set, WhatsApp opens with the greeting ready, for the farmer to choose a chat."""
+    import os
+    from urllib.parse import quote
+    number = "".join(ch for ch in os.getenv("WHATSAPP_NUMBER", "") if ch.isdigit())
+    return f"https://wa.me/{number}?text={quote(WHATSAPP_TEXT.get(lang, WHATSAPP_TEXT['en']))}"

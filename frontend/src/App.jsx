@@ -169,8 +169,9 @@ export default function App() {
               goHome={() => setTab(isFarmer ? "services" : "chat")} />
       </main>
       <VoiceBar />
+      {/* Opens WhatsApp in a new tab (our number once WHATSAPP_NUMBER is set on the server); the chat here stays as it is */}
       <WhatsAppButton label={t("Chat on WhatsApp", "వాట్సాప్‌లో మాట్లాడండి")}
-                      onOpen={() => { setTab(isFarmer ? "services" : "chat"); setWaOpen((n) => n + 1); }} />
+                      onOpen={() => window.open(status?.whatsapp?.[te ? "te" : "en"] || "https://wa.me/", "_blank", "noopener")} />
       {askLogout && (
         <div className="modal-bg" onClick={() => setAskLogout(false)}>
           <div className="panel modal confirm" onClick={(e) => e.stopPropagation()}>

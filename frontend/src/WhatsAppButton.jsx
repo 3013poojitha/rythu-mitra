@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 const SIZE = 60;
 const POS_KEY = "rythu_wa_pos";
 
-// Floating WhatsApp button: tap opens the chat in WhatsApp style; drag it anywhere on the screen.
+// Floating WhatsApp button: tap opens WhatsApp (onOpen); drag it anywhere on the screen.
 // It starts at the bottom-right corner and remembers where it was dropped.
 export default function WhatsAppButton({ onOpen, label }) {
   const [pos, setPos] = useState(() => {

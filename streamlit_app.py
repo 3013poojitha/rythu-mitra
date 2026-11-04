@@ -157,6 +157,8 @@ button[data-variant="segmented_control"][aria-checked="true"] p, button[data-var
 .phone-head { display: flex; gap: 10px; align-items: center; padding: 12px 16px; background: var(--brand); color: #fff; }
 .st-key-phone_wa .phone-head { background: #075e54; }
 .phone-head b { color: #fff; } .phone-head small { display: block; opacity: .85; font-size: 12px; color: #fff; }
+/* Streamlit pulls text blocks up by 16px; under the green header that slid the messages behind it */
+[data-testid="stMarkdownContainer"]:has(> .phone-head) { margin-bottom: 0; }
 .avatar { width: 38px; height: 38px; display: grid; place-items: center; border-radius: 50%; background: rgba(255,255,255,.2); font-size: 20px; }
 .st-key-msgs { background: #f7faf6; padding: 16px; border-radius: 0; border: 0; }
 .st-key-phone_wa .st-key-msgs { background: #ece5dd; }

@@ -556,6 +556,11 @@ html[data-rm-voice="wait"] .st-key-voice_bar_chat .rm-on, html:not([data-rm-voic
   .st-key-topright { justify-content: flex-end; overflow: visible; }
   /* ID, village, age in one line on the green greeting card */
   .farm-who > div { min-width: 0; }
+  /* Less empty space above and inside the green greeting card */
+  .st-key-content { padding-top: 10px; }
+  .st-key-farmhero { padding: 10px 14px; }
+  .st-key-farmhero [data-testid="stHorizontalBlock"] { gap: 0; }
+  .st-key-farmhero button { margin-top: 8px; }
   .farm-sub { font-size: 11px; letter-spacing: -.2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   /* Smaller suggested questions in the chat */
   .st-key-quick_row button { padding: 2px 10px; }

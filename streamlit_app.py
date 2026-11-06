@@ -547,6 +547,16 @@ html[data-rm-voice="wait"] .st-key-voice_bar_chat .rm-on, html:not([data-rm-voic
   .st-key-today_btn button p::before { content: "📅"; font-size: 18px; }
   .st-key-topright > :last-child [data-testid="stPopover"] button p::before { content: "👤"; font-size: 18px; }
   .st-key-today_btn button, .st-key-topbar [data-testid="stPopover"] button { padding-left: 10px; padding-right: 10px; }
+  /* 📅, 🔔 and 👤 all the same size, without the small arrows */
+  .st-key-topright .st-key-today_btn button, .st-key-topright [data-testid="stPopover"] button {
+    width: 46px; min-width: 46px; height: 40px; min-height: 40px; padding: 0 !important; justify-content: center; }
+  .st-key-topright [data-testid="stPopover"] button [data-testid="stIconMaterial"] { display: none; }
+  /* ID, village, age in one line on the green greeting card */
+  .farm-who > div { min-width: 0; }
+  .farm-sub { font-size: 11px; letter-spacing: -.2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  /* Smaller suggested questions in the chat */
+  .st-key-quick_row button { padding: 2px 10px; }
+  .st-key-quick_row button p { font-size: 12px; }
   /* The hint in the typing box in fewer lines, so the box stays short */
   [data-testid="stChatInput"] textarea::placeholder { font-size: 13px; }
   /* Number tiles two in a row instead of one under another */

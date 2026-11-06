@@ -551,6 +551,9 @@ html[data-rm-voice="wait"] .st-key-voice_bar_chat .rm-on, html:not([data-rm-voic
   .st-key-topright .st-key-today_btn button, .st-key-topright [data-testid="stPopover"] button {
     width: 46px; min-width: 46px; height: 40px; min-height: 40px; padding: 0 !important; justify-content: center; }
   .st-key-topright [data-testid="stPopover"] button [data-testid="stIconMaterial"] { display: none; }
+  /* తెలుగు | English keeps its full width (on iPhones the buttons next to it covered "English") */
+  .st-key-topright > :first-child, .st-key-topright > :first-child * { min-width: max-content; flex-shrink: 0 !important; }
+  .st-key-topright { justify-content: flex-end; overflow: visible; }
   /* ID, village, age in one line on the green greeting card */
   .farm-who > div { min-width: 0; }
   .farm-sub { font-size: 11px; letter-spacing: -.2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

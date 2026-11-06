@@ -540,7 +540,15 @@ html[data-rm-voice="wait"] .st-key-voice_bar_chat .rm-on, html:not([data-rm-voic
     flex: 0 0 auto !important; height: max(240px, calc(100dvh - 390px)) !important; }
   [data-testid="stHorizontalBlock"]:has(.st-key-panel_settings) .st-key-msgs { height: 100% !important; }
   /* Farmer's Home chat too (100dvh = the part of the screen left after the browser's own bars) */
-  .st-key-farmer_chat div:has(> .st-key-msgs) { height: max(240px, calc(100dvh - 330px)) !important; }
+  .st-key-farmer_chat div:has(> .st-key-msgs) { height: max(160px, calc(100dvh - 500px)) !important; }
+  /* Header buttons in one row: 📅 and 👤 without their words */
+  .st-key-topright { flex-wrap: nowrap; gap: 6px; }
+  .st-key-today_btn button p, .st-key-topright > :last-child [data-testid="stPopover"] button p { font-size: 0 !important; }
+  .st-key-today_btn button p::before { content: "📅"; font-size: 18px; }
+  .st-key-topright > :last-child [data-testid="stPopover"] button p::before { content: "👤"; font-size: 18px; }
+  .st-key-today_btn button, .st-key-topbar [data-testid="stPopover"] button { padding-left: 10px; padding-right: 10px; }
+  /* The hint in the typing box in fewer lines, so the box stays short */
+  [data-testid="stChatInput"] textarea::placeholder { font-size: 13px; }
   /* Number tiles two in a row instead of one under another */
   [data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"] [data-testid="stMetric"]) { flex-flow: row wrap; }
   [data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"] [data-testid="stMetric"]) > [data-testid="stColumn"] {

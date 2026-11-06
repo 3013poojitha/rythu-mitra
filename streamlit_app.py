@@ -526,6 +526,31 @@ html[data-rm-voice="wait"] .st-key-voice_bar_chat .rm-on, html:not([data-rm-voic
   .farm-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .msg { max-width: 92%; }
 }
+/* Phones only (desktop is not touched) */
+@media (max-width: 640px) {
+  /* Shorter green header: app name and buttons, no subtitle, so more of the page shows */
+  .brand-sub { display: none; }
+  .st-key-topbar { padding-top: 8px; padding-bottom: 8px; }
+  .logo { font-size: 24px; }
+  .st-key-nav [data-testid="stRadioOption"] { padding: 10px 10px !important; }
+  /* Staff chat page: the chat comes first, its settings under it */
+  [data-testid="stHorizontalBlock"]:has(.st-key-panel_settings) { flex-direction: column-reverse; }
+  /* ...and fits the phone screen: messages scroll inside, the typing box stays in view */
+  [data-testid="stHorizontalBlock"]:has(.st-key-panel_settings) div:has(> .st-key-msgs) {
+    flex: 0 0 auto !important; height: max(240px, calc(100dvh - 390px)) !important; }
+  [data-testid="stHorizontalBlock"]:has(.st-key-panel_settings) .st-key-msgs { height: 100% !important; }
+  /* Farmer's Home chat too (100dvh = the part of the screen left after the browser's own bars) */
+  .st-key-farmer_chat div:has(> .st-key-msgs) { height: max(240px, calc(100dvh - 330px)) !important; }
+  /* Number tiles two in a row instead of one under another */
+  [data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"] [data-testid="stMetric"]) { flex-flow: row wrap; }
+  [data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"] [data-testid="stMetric"]) > [data-testid="stColumn"] {
+    flex: 1 1 calc(50% - 8px) !important; min-width: calc(50% - 8px) !important; width: calc(50% - 8px) !important; }
+  /* Smaller WhatsApp button covers less of the page */
+  .wa-float { width: 50px; height: 50px; }
+  .wa-float svg { width: 28px; height: 28px; }
+  /* 16px text in boxes stops iPhones zooming in when you tap them */
+  input, textarea, [data-baseweb="select"] { font-size: 16px !important; }
+}
 </style>
 """
 

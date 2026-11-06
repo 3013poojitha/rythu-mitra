@@ -502,6 +502,14 @@ label.check input { width: auto; }
 .wa-float:active { cursor: grabbing; transform: scale(1.06); }
 .wa-float:hover { background: #1ebe5b; }
 
+/* Phones only (desktop is not touched): shorter header, chat before its settings, smaller WhatsApp button */
+@media (max-width: 640px) {
+  .brand-sub { display: none; }
+  .chat-layout > .side { order: 1; }
+  .wa-float { width: 50px; height: 50px; }
+  .wa-float svg { width: 28px; height: 28px; }
+}
+
 /* ---- My Details payment status ---- */
 .pay-row { display: flex; align-items: center; gap: 8px 12px; padding: 10px 0; border-top: 1px solid #eef1ec; flex-wrap: wrap; }
 .pay-icon { font-size: 1.4rem; }

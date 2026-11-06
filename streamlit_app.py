@@ -444,6 +444,15 @@ html[data-rm-voice="wait"] .st-key-voice_bar_chat .rm-on, html:not([data-rm-voic
 .st-key-quick_row button { border-radius: 99px; min-height: 0; padding: 4px 12px; background: #fff; border-color: var(--brand); color: var(--brand); }
 .st-key-quick_row button p { font-size: 13px; }
 .st-key-farmer_chat { scroll-margin-top: 140px; }
+/* "More below" arrow under the Home chat: only when the rows sit under the chat (narrow screens) */
+.more-below { display: none; }
+@media (max-width: 1000px) {
+  .more-below { display: flex; justify-content: center; align-items: center; gap: 8px; margin-top: -6px; color: var(--brand);
+    font-size: 13px; font-weight: 600; cursor: pointer; }
+  .more-below span { width: 9px; height: 9px; border-right: 2.5px solid; border-bottom: 2.5px solid; transform: rotate(45deg); margin-top: -4px; animation: nudge 1.4s ease-in-out infinite; }
+  .st-key-svc_side { scroll-margin-top: 150px; }
+}
+@keyframes nudge { 0%, 100% { transform: translateY(0) rotate(45deg); } 50% { transform: translateY(4px) rotate(45deg); } }
 /* Home chat fits the screen: messages scroll inside, the typing box and mic stay in view */
 .st-key-farmer_chat div:has(> .st-key-msgs) { flex: 0 0 auto !important; height: max(300px, calc(100vh - 410px)) !important; }
 .st-key-farmer_chat .st-key-msgs { height: 100% !important; }
@@ -540,7 +549,7 @@ html[data-rm-voice="wait"] .st-key-voice_bar_chat .rm-on, html:not([data-rm-voic
     flex: 0 0 auto !important; height: max(240px, calc(100dvh - 390px)) !important; }
   [data-testid="stHorizontalBlock"]:has(.st-key-panel_settings) .st-key-msgs { height: 100% !important; }
   /* Farmer's Home chat too (100dvh = the part of the screen left after the browser's own bars) */
-  .st-key-farmer_chat div:has(> .st-key-msgs) { height: max(160px, calc(100dvh - 500px)) !important; }
+  .st-key-farmer_chat div:has(> .st-key-msgs) { height: max(160px, calc(100dvh - 545px)) !important; }
   /* Header buttons in one row: 📅 and 👤 without their words */
   .st-key-topright { flex-wrap: nowrap; gap: 6px; }
   .st-key-today_btn button p, .st-key-topright > :last-child [data-testid="stPopover"] button p { font-size: 0 !important; }
@@ -572,7 +581,7 @@ html[data-rm-voice="wait"] .st-key-voice_bar_chat .rm-on, html:not([data-rm-voic
   [data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"] [data-testid="stMetric"]) > [data-testid="stColumn"] {
     flex: 1 1 calc(50% - 8px) !important; min-width: calc(50% - 8px) !important; width: calc(50% - 8px) !important; }
   /* Smaller WhatsApp button covers less of the page */
-  .wa-float { width: 50px; height: 50px; }
+  .wa-float { width: 50px; height: 50px; bottom: 200px; }
   .wa-float svg { width: 28px; height: 28px; }
   /* 16px text in boxes stops iPhones zooming in when you tap them */
   input, textarea, [data-baseweb="select"] { font-size: 16px !important; }
@@ -2668,6 +2677,11 @@ def page_services(user):
             farm_profile(f, farmer_view)
         if farmer_view:  # farmers ask questions right here: type, or tap the mic and talk
             page_chat(user, embedded=True)
+            # Phones: the rows (advice, schemes, payments...) are under the chat; an arrow says so, tap to go there
+            H(f'<div class="more-below">{T("More below", "కింద మరిన్ని సేవలు")}<span></span></div>')
+            page_js("""document.querySelectorAll('.more-below').forEach((a) => { a.onclick = () =>
+  document.querySelector('.st-key-svc_side')?.scrollIntoView({behavior: 'smooth', block: 'start'}); });""",
+                    wait_for=".more-below")
     with right, st.container(key="svc_side"):
         side_sections(f, fid)
 
